@@ -40,11 +40,30 @@ class Resource(T) {
     }
     
     T allocate(int id, int priority){
+        mtx.lock();
+        queue.insert(id,priority);
+
+        while(queue.front() !=id){
+            cond.wait();
+        }
+
+            
+        queue.popFront();       //Fjern oss fra køen
+        mtx.unlock();       //slipp mutex
+
+
         return value;
     }
     
     void deallocate(T v){
+        mtx.lock();     //lås mutex
         value = v;
+       
+
+        if (!queue.empty){  //hvis noen venter på ressursen
+            cond.notifyAll();  //vekk alle ventende tråder
+        }
+        mtx.unlock(); //slipp mutec
     }
 }
 

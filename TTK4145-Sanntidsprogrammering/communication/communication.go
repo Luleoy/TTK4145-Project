@@ -13,13 +13,13 @@ func CommunicationHandler(
 	peerUpdateChannel <-chan peers.PeerUpdate,
 	NewlocalElevatorChannel <-chan single_elevator.State,
 	peerTXEnableChannel chan<- bool,
-	assignedRequestsChannel chan<- map[string][][2]bool,
-	numPeersChannel chan<- int,
+	IDPeersChannel chan<- []string,
+
 ) {
 
 	//initialisering
 	localWorldView := worldview.InitializeWorldView(elevatorID)
-	numPeers := 0
+	//numPeers := 0
 
 	for {
 
@@ -42,28 +42,31 @@ func CommunicationHandler(
 			fmt.Printf("  Lost:     %q\n", peers.Lost)
 
 			//Oppdaterer aktive peers
-			numPeers = len(peers.Peers)
-			numPeersChannel <- numPeers
+			//numPeers = len(peers.Peers)
+			IDPeersChannel <- peers.Peers
 
-			//finer om tapt heis utilgjengelig
-			if localWorldView.ElevatorStatusList[peers.Lost[0]].unavailable { //her må det gjøres noe
-				AssignOrder(*&localWorldView, assignedRequestsChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
-				peerTXEnableChannel <- true
-			} else {
-				//ikke utilgjengelig heis, fjernes tapt heis fra systemoversikt
-				for i, ack := range localWorldView.Acklist {
-					for _, lostPeer := range peers.Lost {
-						delete(localWorldView.ElevatorStatusList, lostPeer)
+			/*
+					//finer om tapt heis utilgjengelig
+					if localWorldView.ElevatorStatusList[peers.Lost[0]].Unavailable { //her må det gjøres noe
+						worldview.AssignOrder(*&localWorldView, newOrderChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
+						peerTXEnableChannel <- true
+					} else {
+						//tilgjengelig heis, fjernes tapt heis fra systemoversikt
+						for i, ack := range localWorldView.Acklist {
+							for _, lostPeer := range peers.Lost {
+								delete(localWorldView.ElevatorStatusList, lostPeer)
 
-						//Fjerner heisen fra Acklist
-						if ack == lostPeer {
-							localWorldView.Acklist = append(localWorldView.Acklist[:i], localWorldView.Acklist[i+1:]...)
+								//Fjerner heisen fra Acklist
+								if ack == lostPeer {
+									localWorldView.Acklist = append(localWorldView.Acklist[:i], localWorldView.Acklist[i+1:]...)
+								}
+							}
 						}
+						//Redistribuer ordre
+						worldview.AssignOrder(*&localWorldView, worldview.WorldViewManager())
 					}
 				}
-				//Redistribuer ordre
-				AssignOrder(*&localWorldView, assignedRequestsChannel)
-			}
+			*/
 		}
 	}
 }
