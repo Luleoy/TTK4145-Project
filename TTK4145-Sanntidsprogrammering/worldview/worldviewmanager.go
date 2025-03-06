@@ -43,6 +43,7 @@ func WorldViewManager(
 	newOrderChannel chan<- single_elevator.Orders, //skal brukes i single elevator - fra OrderManager
 	completedOrderChannel <-chan elevio.ButtonEvent,
 	numPeersChannel <-chan int,
+	IDPeersChannel <- chan []string,
 ) {
 
 	//initialize local world view to send on message channel
