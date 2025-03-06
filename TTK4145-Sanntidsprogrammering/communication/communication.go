@@ -47,7 +47,7 @@ func CommunicationHandler(
 
 			//finer om tapt heis utilgjengelig
 			if localWorldView.ElevatorStatusList[peers.Lost[0]].unavailable { //her må det gjøres noe
-				AssignOrder(*&localWorldView, assignedRequestsChannel)
+				AssignOrder(*&localWorldView, assignedRequestsChannel) //har ikke assignedrequestschannel
 				peerTXEnableChannel <- true
 			} else {
 				//ikke utilgjengelig heis, fjernes tapt heis fra systemoversikt

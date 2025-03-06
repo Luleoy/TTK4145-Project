@@ -89,7 +89,7 @@ func WorldViewManager(
 				//SENERE: merge CAB buttons og eksisterende HALL buttons inn i en OrderMatrix - vil ha den oppdaterte matrisen OG SEND TIL SINGLE ELEVATOR
 			}
 			localWorldView.HallOrderStatus[buttonPressed.Floor][int(buttonPressed.Button)] = configuration.Order //setter hallorder i hallorderstatus til ORDER
-			localWorldView.Counter++                                                                             //øker counter
+			localWorldCompleteOrderView.Counter++                                                                             //øker counter
 			ResetAckList(localWorldView)                                                                         //tømmer ackliste og legger til egen ID
 
 		//MESSAGE SYSTEM - connection with network
@@ -139,8 +139,7 @@ func WorldViewManager(
 						if localWorldView.ID == updatedWorldView.Acklist[IDs] {
 							if reflect.DeepEqual(localWorldView.Acklist, updatedWorldView.Acklist) {
 								localElevatorStatus := localWorldView.ElevatorStatusList[elevatorID] //henter status fra elevatorID
-								localWorldView = &updatedWorldView                                   //update egen world view
-								localWorldView.ElevatorStatusList[elevatorID] = localElevatorStatus
+								CompleteOrder		localWorldView.ElevatorStatusList[elevatorID] = localElevatorStatus
 
 								break OuterLoop
 							}
@@ -173,7 +172,7 @@ func WorldViewManager(
 					}
 				}
 			}
-			//? sammenheng med single elevator
+			// sammenheng med single elevator
 			//case complete := <-completedOrderChannel: //må få inn complete order fra FSM - når single elevator også?
 			//motta bekreftelse på at ordre er fullført
 			//oppdatere hallorderstatus til complete
