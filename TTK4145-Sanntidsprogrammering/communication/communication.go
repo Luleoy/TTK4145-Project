@@ -28,7 +28,7 @@ func CommunicationHandler(
 		//case_ 5: Oppdateringer for den lokale heisen, trenger vi den??
 		case newLocalElevator := <-NewlocalElevatorChannel: //listning to channel
 			localWorldView.ElevatorStatusList[elevatorID] = newLocalElevator
-			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden
+			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW 
 
 		//Case 6:
 		//oppdatere på hvilke heiser som er aktive ( når heiser kommer på og forsvinner fra nettverket)
@@ -47,7 +47,7 @@ func CommunicationHandler(
 
 			//finer om tapt heis utilgjengelig
 			if localWorldView.ElevatorStatusList[peers.Lost[0]].unavailable { //her må det gjøres noe
-				AssignOrder(*&localWorldView, assignedRequestsChannel) //har ikke assignedrequestschannel
+				AssignOrder(*&localWorldView, assignedRequestsChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
 				peerTXEnableChannel <- true
 			} else {
 				//ikke utilgjengelig heis, fjernes tapt heis fra systemoversikt

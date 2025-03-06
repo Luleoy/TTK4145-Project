@@ -55,11 +55,14 @@ func WorldViewManager(
 
 	orderDistributed := make([][configuration.NumButtons - 1]bool, configuration.NumFloors) //liste for at alle heisene skal vite at de har distribuert order
 
+	IDsAliveElevators := []string{}
+
 	for {
 	OuterLoop: //break ut av hele for-loopen
 		select {
-		case num := <-numPeersChannel:
+		case IDList := <-IDPeersChannel:
 			numPeers = num
+			IDsAliveElevators = IDList
 
 		case <-SendLocalWorldViewTimer.C: //local world view updates
 			localWorldView.ID = elevatorID
@@ -67,30 +70,16 @@ func WorldViewManager(
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
 		case buttonPressed := <-buttonPressedChannel: //knappetrykk. tar inn button events. Dette er neworder. Må skille fra Neworderchannel i single_elevator. sjekk ut hvor den skal defineres etc
-			//1 heis - sende til SINGLE ELEVATOR
-			if numPeers == 1 { //kun en heis - har tatt inn ordermanager funksjonen
-				OrderMatrix := [configuration.NumFloors][configuration.NumButtons]bool{}
-				OrderMatrix[buttonPressed.Floor][buttonPressed.Button] = true
-				//SetLights(OrderMatrix)
-				newOrderChannel <- OrderMatrix
-				//hvordan skal vi complete order når det er en single elevator? - skal det sendes til completeorderchannel?
-				/*for {
-					select {
-					case ordercompletedbyfsm := <-completedOrderChannel: //KAN IKKE LESE UT AV COMPLETEDORDERCHANNEL FLERE STEDER
-						OrderMatrix[ordercompletedbyfsm.Floor][ordercompletedbyfsm.Button] = false
-						//SetLights(OrderMatrix)
-						newOrderChannel <- OrderMatrix
-					}
-				} */
+			newLocalWorldView := updateWorldViewWithBtn(localWorldView, buttonPressed, true) // false if remove this order
+			if !validWorldView(newLocalWorldView) {
+				continue
 			}
-			//CAB BUTTONS - sende til SINGLE ELEVATOR
-			if buttonPressed.Button == elevio.BT_Cab {
-				//oppdatere worldview med CAB buttons
-				//SENERE: merge CAB buttons og eksisterende HALL buttons inn i en OrderMatrix - vil ha den oppdaterte matrisen OG SEND TIL SINGLE ELEVATOR
-			}
-			localWorldView.HallOrderStatus[buttonPressed.Floor][int(buttonPressed.Button)] = configuration.Order //setter hallorder i hallorderstatus til ORDER
-			localWorldCompleteOrderView.Counter++                                                                             //øker counter
-			ResetAckList(localWorldView)                                                                         //tømmer ackliste og legger til egen ID
+			localWorldView = newLocalWorldView
+			worldViewTx <- localWorldView
+
+			// localWorldView.HallOrderStatus[buttonPressed.Floor][int(buttonPressed.Button)] = configuration.Order //setter hallorder i hallorderstatus til ORDER
+			// localWorldView.Counter++                                                                             //øker counter
+			ResetAckList(localWorldView) //tømmer ackliste og legger til egen ID
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
@@ -99,6 +88,20 @@ func WorldViewManager(
 			//håndtering lys
 			//oppdatere hallorderstatus basert på status for order
 			//tildeler ordre hvis de ikke allerede er distribuert
+
+			newLocalWorldView = mergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
+			if !validWorldView(newLocalWorldView) {
+				continue
+			}
+			// send new worldview on network
+
+			hraInput := convertToHra(localWorldView)
+			assignedHalorders := runHRA(hraInput)
+			ourHal := assignedHalorders[ourId]
+			ourCab := getOurCab(localWorldView, ourId)
+			ordermatrix := covertToOrderMatrix(ourHal, ourCab)
+			updatedOrdersChan <- ordermatrix
+			// run HRA and send new ordermatrix to single elev
 
 			if localWorldView.Counter >= updatedWorldView.Counter { //sjekker lengde av egen counter og counter på melding
 				if localWorldView.Counter == updatedWorldView.Counter && len(localWorldView.Acklist) < len(updatedWorldView.Acklist) { //hvis counters er like, og acklisten til melding er lengre
@@ -120,7 +123,7 @@ func WorldViewManager(
 								localWorldView.Counter++                                                //øker counter
 								ResetAckList(localWorldView)                                            //resetter acklist og legger seg selv til i acklist
 							case updatedWorldView.HallOrderStatus[floor][button] == configuration.Confirmed && !orderDistributed[floor][button]:
-								CompleteOrder()
+								CompleteOrder() //må linke med FSM
 								AssignOrder(updatedWorldView, newOrderChannel)
 								orderDistributed[floor][button] = true
 								localWorldView = &updatedWorldView
@@ -139,7 +142,8 @@ func WorldViewManager(
 						if localWorldView.ID == updatedWorldView.Acklist[IDs] {
 							if reflect.DeepEqual(localWorldView.Acklist, updatedWorldView.Acklist) {
 								localElevatorStatus := localWorldView.ElevatorStatusList[elevatorID] //henter status fra elevatorID
-								CompleteOrder		localWorldView.ElevatorStatusList[elevatorID] = localElevatorStatus
+								localWorldView = &updatedWorldView                                   //update egen world view
+								localWorldView.ElevatorStatusList[elevatorID] = localElevatorStatus
 
 								break OuterLoop
 							}
@@ -154,7 +158,7 @@ func WorldViewManager(
 					}
 					localElevatorStatus := localWorldView.ElevatorStatusList[elevatorID]
 					localWorldView = &updatedWorldView
-					localWorldView.ElevatorStatusList[elevatorID] = localElevatorStatus
+					localWorldView.ElevatorSCompletetatusList[elevatorID] = localElevatorStatus
 
 					localWorldView.Acklist = append(localWorldView.Acklist, elevatorID)
 					localWorldView.Counter++
@@ -163,7 +167,7 @@ func WorldViewManager(
 						for floor := 0; floor < configuration.NumFloors; floor++ {
 							for button := 0; button < configuration.NumButtons-1; button++ {
 								if localWorldView.HallOrderStatus[floor][button] == configuration.Confirmed && !orderDistributed[floor][button] {
-									CompleteOrder(localWorldView, button, floor, true)
+									CompleteOrder() //må linke med FSM
 									AssignOrder(updatedWorldView, newOrderChannel)
 									orderDistributed[floor][button] = true
 								}

@@ -20,7 +20,7 @@ type RequestState int
 
 const (
 	None RequestState = iota
-	Order
+	Order //UnConfirmed
 	Confirmed
 	Complete
 )
