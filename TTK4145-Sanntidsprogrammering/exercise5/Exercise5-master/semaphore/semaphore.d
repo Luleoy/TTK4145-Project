@@ -6,6 +6,7 @@ immutable Duration tick = 33.msecs;
 
 // --- RESOURCE CLASS --- //
 /* 
+
 You will implement the functionality for `allocate` and `deallocate`.
 
 Documentation:
@@ -33,12 +34,33 @@ class Resource(T) {
     }
     
     T allocate(int priority){
-        return value;
+        mtx.wait();         //lås mutex for å sikre at ingen andre endrer busy- status sammtidig
+        if (busy){
+            numWaiting[priority]++;  //registrerer at en tråd venter i denne køen
+            mtx.notify();            //slipp mutex før vi venter på semaforen
+            sems[priority].wait();    //venter på semaforen for våt prioritet
+            numWaiting[priority]--;     //når vekkes reduseres antallet ventend
+        }
+        busy = true;            //når vi tar ressursen
+        mtx.notify();            //slipp mutex slik at andre tråder kan kjøre
+        return value;          
     }
     
     void deallocate(T v){
-        value = v;
+        mtx.wait();         //lås mutex
+        value = v;          //oppdater ressursverdier
+        busy = false;       //merk ressureser som ledig 
+
+        if (numWaiting[1]>0){
+            sems [1].notify();
     }
+        else if(numWaiting[0]>0){
+            sems[0].notify();
+        }
+        else{
+            mtx.notify;
+        }
+  }
 }
 
 

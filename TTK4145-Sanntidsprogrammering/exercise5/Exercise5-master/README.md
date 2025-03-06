@@ -25,10 +25,11 @@ For this specific example, we will only use two priority levels (*high* and *low
 The pseudocode below implements a buggy solution to this problem, using semaphores. This code is adapted from Burns & Wellings Chapter 5.4 *Semaphores* (Specifically 5.4.7 *Semaphore programming using C/Real-time POSIX*). In the lectures, you will find it referred to as "A hard-to-find bug".
 
 ```C
-// Initial values:
-// M     = 1
-// PS[2] = [0, 0]
-// busy  = false
+//Initial values:
+
+  M     = 1
+  PS[2] = [0, 0]
+  busy  = false
 
 // priority: 1=high, 0=low
 void allocate(int priority){
@@ -48,7 +49,9 @@ void deallocate(){
         Signal(PS[1]);
     } else if(GetValue(PS[0]) < 0){
         Signal(PS[0]);
-    } else {
+    } else { //fjerner else
+
+      //Sørg for at låsen M alltid blir frigjort
         Signal(M);
     }
 }

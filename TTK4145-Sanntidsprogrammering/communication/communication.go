@@ -14,7 +14,8 @@ func CommunicationHandler(
 	NewlocalElevatorChannel <-chan single_elevator.State,
 	peerTXEnableChannel chan<- bool,
 	assignedRequestsChannel chan<- map[string][][2]bool,
-	numPeersChannel chan<- int,
+	IDPeersChannel chan <- []string,
+
 ) {
 
 	//initialisering
@@ -28,7 +29,9 @@ func CommunicationHandler(
 		//case_ 5: Oppdateringer for den lokale heisen, trenger vi den??
 		case newLocalElevator := <-NewlocalElevatorChannel: //listning to channel
 			localWorldView.ElevatorStatusList[elevatorID] = newLocalElevator
-			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW 
+			
+			//cabRequest := GetCabRequests(newLocalElevator) 
+			// //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW 
 
 		//Case 6:
 		//oppdatere på hvilke heiser som er aktive ( når heiser kommer på og forsvinner fra nettverket)
@@ -43,11 +46,11 @@ func CommunicationHandler(
 
 			//Oppdaterer aktive peers
 			numPeers = len(peers.Peers)
-			numPeersChannel <- numPeers
+			IDPeersChannel <- peers.Peers
 
 			//finer om tapt heis utilgjengelig
-			if localWorldView.ElevatorStatusList[peers.Lost[0]].unavailable { //her må det gjøres noe
-				AssignOrder(*&localWorldView, assignedRequestsChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
+			if localWorldView.ElevatorStatusList[peers.Lost[0]].Unavailable { //her må det gjøres noe
+				worldview.AssignOrder(*&localWorldView, newOrderChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
 				peerTXEnableChannel <- true
 			} else {
 				//ikke utilgjengelig heis, fjernes tapt heis fra systemoversikt
@@ -62,7 +65,7 @@ func CommunicationHandler(
 					}
 				}
 				//Redistribuer ordre
-				AssignOrder(*&localWorldView, assignedRequestsChannel)
+				worldview.AssignOrder(*&localWorldView, worldview.WorldViewManager())
 			}
 		}
 	}
