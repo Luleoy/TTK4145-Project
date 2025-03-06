@@ -19,7 +19,6 @@ func CommunicationHandler(
 
 	//initialisering
 	localWorldView := worldview.InitializeWorldView(elevatorID)
-	//numPeers := 0
 
 	for {
 
@@ -42,31 +41,7 @@ func CommunicationHandler(
 			fmt.Printf("  Lost:     %q\n", peers.Lost)
 
 			//Oppdaterer aktive peers
-			//numPeers = len(peers.Peers)
 			IDPeersChannel <- peers.Peers
-
-			/*
-					//finer om tapt heis utilgjengelig
-					if localWorldView.ElevatorStatusList[peers.Lost[0]].Unavailable { //her må det gjøres noe
-						worldview.AssignOrder(*&localWorldView, newOrderChannel) //har ikke assignedrequestschannel - VI BRUKER NEWORDERCHANNEL
-						peerTXEnableChannel <- true
-					} else {
-						//tilgjengelig heis, fjernes tapt heis fra systemoversikt
-						for i, ack := range localWorldView.Acklist {
-							for _, lostPeer := range peers.Lost {
-								delete(localWorldView.ElevatorStatusList, lostPeer)
-
-								//Fjerner heisen fra Acklist
-								if ack == lostPeer {
-									localWorldView.Acklist = append(localWorldView.Acklist[:i], localWorldView.Acklist[i+1:]...)
-								}
-							}
-						}
-						//Redistribuer ordre
-						worldview.AssignOrder(*&localWorldView, worldview.WorldViewManager())
-					}
-				}
-			*/
 		}
 	}
 }

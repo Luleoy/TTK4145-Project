@@ -95,12 +95,6 @@ func HRAInputFormatting(WorldView WorldView) AssignerExecutable.HRAInput {
 	return input
 }
 
-func AssignOrder(WorldView WorldView, newOrderChannel chan<- single_elevator.Orders) { //map med ID som nøkkel, og arrays med 2 bolske verdier med orders true or false
-	input := HRAInputFormatting(WorldView) //Konverterer WorldView til riktig input for Assigner
-	outputAssigner := AssignerExecutable.Assigner(input)
-	//konvertere outputAssigner til matriseform
-	newOrderChannel <- MergeCABandHRAoutput(outputAssigner) //på formen Orders (ordermatrix)
-}
 
 
 
@@ -112,26 +106,30 @@ func AssignOrder(WorldView WorldView, newOrderChannel chan<- single_elevator.Ord
 //må iterere gjennom keys og velge riktig elevator 
 //velge riktig elevator og sette en på riktig sted til dens ordermatrix 
 //MergeCABandHRA → Merges the converted HallOrderStatus with CabRequests to form a 4x3 matrix.
-func MergeCABandHRAout(OutputAssigner map[string][][2]bool) single_elevator.Orders {
+func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) single_elevator.Orders {
 	var OrderMatrix single_elevator.Orders //initialiserer ordermatrix - fjerne initialisering i Single Elevator 
-	for cabbuttons := range AssignerExecutable.HRAInput.CabRequests {
-		if cabbuttons == true {
-			OrderMatrix[cabbuttons][2] = true 
+	for floor, cabbutton := range Ourcab {
+		if cabbutton { 
+			OrderMatrix[floor][2] = true // Bruker `floor` som indeks
 		}
 	}
 	//ikke riktig iterasjon??
-	for ID, value := range OutputAssigner {
-		if ID == WorldView.ID {
-				for i, row := range orders {
-					for j, value := range rows {
-						if value == true {
-							OrderMatrix[][] = true //hvilke elementer? 
-						}
-					}
-				}
+	for floor, buttons := range OurHall { // Iterer over etasjene
+		for buttonType, isPressed := range buttons { // Iterer over knappene (opp/ned)
+			if isPressed { 
+				OrderMatrix[floor][buttonType] = true // Oppdater OrderMatrix
+			}
 		}
 	}
 	return OrderMatrix
+}
+
+
+func AssignOrder(WorldView WorldView) map[string][][2]bool { //map med ID som nøkkel, og arrays med 2 bolske verdier med orders true or false
+	input := HRAInputFormatting(WorldView) //Konverterer WorldView til riktig input for Assigner
+	outputAssigner := AssignerExecutable.Assigner(input)
+	return outputAssigner 
+	//konvertere outputAssigner til matriseform
 }
 
 	//output fra assigner - map av id og hvilke ordre som skal tas 
@@ -158,3 +156,8 @@ func MergeCABandHRAout(OutputAssigner map[string][][2]bool) single_elevator.Orde
 	}
 //alle må ha oppdatert worldview før den kan assignes og utføres 
 
+
+
+func GetOurCAB(localWorldView WorldView, ourID string) []bool { //må man ha med ID her? 
+	return localWorldView.ElevatorStatusList[ourID].Cab
+}
