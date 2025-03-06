@@ -9,6 +9,8 @@ package worldview
 //neworderchannel og completedorderchannel
 //buttonpressedchannel??
 
+//test
+
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
