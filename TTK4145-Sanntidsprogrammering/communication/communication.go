@@ -28,7 +28,7 @@ func CommunicationHandler(
 		//case_ 5: Oppdateringer for den lokale heisen, trenger vi den??
 		case newLocalElevator := <-NewlocalElevatorChannel: //listning to channel
 			localWorldView.ElevatorStatusList[elevatorID] = newLocalElevator
-			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW 
+			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW
 
 		//Case 6:
 		//oppdatere på hvilke heiser som er aktive ( når heiser kommer på og forsvinner fra nettverket)

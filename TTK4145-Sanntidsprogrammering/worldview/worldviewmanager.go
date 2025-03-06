@@ -21,16 +21,19 @@ import (
 
 // REQUESTSTATE INT - lage en funksjon som konverterer fra WorldView til OrderMatrix som vi kan bruke
 //vi vil ha noe spesifikt å sende til FSM
-
+type ElevStateMsg struct {
+	Elev single_elevator.State
+	Cab []configuration.OrderMsg
+}
 // oppdaterer newlocalstate i single_elevator FSM
 type WorldView struct {
-	Counter int
 	ID      string
-	Acklist []string
+	// Acklist []string
 
-	ElevatorStatusList map[string]single_elevator.State //legger inn all info om hver heis; floor, direction, obstructed, behaviour
-	HallOrderStatus    [][configuration.NumButtons - 1]configuration.RequestState
-	CabRequests        [configuration.NumFloors]bool //hvis vi broadcaster cab buttons her, slipper vi å lagre alt over i en fil
+	ElevatorStatusList map[string]ElevStateMsg //legger inn al			hvordan fysisk kobler man opp....
+	// l info om hver heis; floor, direction, obstructed, behaviour
+	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMsg
+	// CabRequests        [configuration.NumFloors]configuration.OrderMsg //hvis vi broadcaster cab buttons her, slipper vi å lagre alt over i en fil
 	//Burde vi broadcaste om heisen er i live eller ikke/unavailable??
 }
 
@@ -61,7 +64,7 @@ func WorldViewManager(
 	OuterLoop: //break ut av hele for-loopen
 		select {
 		case IDList := <-IDPeersChannel:
-			numPeers = num
+			numPeers = len(IDList)
 			IDsAliveElevators = IDList
 
 		case <-SendLocalWorldViewTimer.C: //local world view updates
@@ -70,16 +73,14 @@ func WorldViewManager(
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
 		case buttonPressed := <-buttonPressedChannel: //knappetrykk. tar inn button events. Dette er neworder. Må skille fra Neworderchannel i single_elevator. sjekk ut hvor den skal defineres etc
-			newLocalWorldView := updateWorldViewWithBtn(localWorldView, buttonPressed, true) // false if remove this order
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true) // false if remove this order
+			//feilhåndtering
 			if !validWorldView(newLocalWorldView) {
 				continue
 			}
-			localWorldView = newLocalWorldView
-			worldViewTx <- localWorldView
-
-			// localWorldView.HallOrderStatus[buttonPressed.Floor][int(buttonPressed.Button)] = configuration.Order //setter hallorder i hallorderstatus til ORDER
-			// localWorldView.Counter++                                                                             //øker counter
-			ResetAckList(localWorldView) //tømmer ackliste og legger til egen ID
+			localWorldView = &newLocalWorldView
+			WorldViewTXChannel <- *localWorldView //la til peker?
+			ResetAckList(localWorldView)          //tømmer ackliste og legger til egen ID
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
@@ -95,12 +96,27 @@ func WorldViewManager(
 			}
 			// send new worldview on network
 
+			//UPDATE HALLSTATUS TO CONFIRMED
+			//ackliste bare skal være så lang som aktive heiser
+			//SJEKKE OM ACKLIST ER LIKE LANG SOM AKTIVE HEISER - samme IDer
+			alive = 0
+			for IDS := localWorldView.Acklist {
+				for elevators := IDsAliveElevators {
+					alive++
+				}
+			}
+			if a == numPeers {
+				//Start 
+			}		
+			//vi tenker at det hjemmesnekkra greine over, må være true for å kunne gå til neste funk
+
 			hraInput := convertToHra(localWorldView)
 			assignedHalorders := runHRA(hraInput)
 			ourHal := assignedHalorders[ourId]
 			ourCab := getOurCab(localWorldView, ourId)
 			ordermatrix := covertToOrderMatrix(ourHal, ourCab)
 			updatedOrdersChan <- ordermatrix
+			//assign order
 			// run HRA and send new ordermatrix to single elev
 
 			if localWorldView.Counter >= updatedWorldView.Counter { //sjekker lengde av egen counter og counter på melding
@@ -117,7 +133,7 @@ func WorldViewManager(
 					for floor := 0; floor < configuration.NumFloors; floor++ { //iterere gjennom floors
 						for button := 0; button < configuration.NumButtons-1; button++ { //iterere gjennom buttons
 							switch {
-							case updatedWorldView.HallOrderStatus[floor][button] == configuration.Order: //legger til hallorder
+							case updatedWorldView.HallOrderStatus[floor][button] == configuration.Unconfirmed: //legger til hallorder
 								localWorldView.HallOrderStatus[floor][button] = configuration.Confirmed //confirmed hallorder
 								localWorldView.Counter = updatedWorldView.Counter                       //setter counter lik hverandre
 								localWorldView.Counter++                                                //øker counter
@@ -176,21 +192,17 @@ func WorldViewManager(
 					}
 				}
 			}
-			// sammenheng med single elevator
-			//case complete := <-completedOrderChannel: //må få inn complete order fra FSM - når single elevator også?
-			//motta bekreftelse på at ordre er fullført
-			//oppdatere hallorderstatus til complete
-			//lights
-			//øke counter
-
-			//order completed SINGLE ELEVATOR FSM:
-			//case ordercompletedbyfsm := <-completedOrderChannel: completed order channel sender button event
-			//OrderMatrix[ordercompletedbyfsm.Floor][ordercompletedbyfsm.Button] = false
-			//SetLights(OrderMatrix)
-			//newOrderChannel <- OrderMatrix
+		case complete := <-completedOrderChannel:
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false) // false if remove this order
+			//feilhåndtering
+			if !validWorldView(newLocalWorldView) {
+				continue
+			}
+			localWorldView = &newLocalWorldView
+			WorldViewTXChannel <- *localWorldView //la til peker?
+			ResetAckList(localWorldView)          //tømmer ackliste og legger til egen ID
 		}
 	}
 }
 
-//MÅ LAGE HALLORDERDISTRIBUTOR
 //lys

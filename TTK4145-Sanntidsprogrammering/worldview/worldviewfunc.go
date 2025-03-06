@@ -11,7 +11,6 @@ import (
 
 func InitializeWorldView(elevatorID string) WorldView {
 	message := WorldView{
-		Counter:            0,
 		ID:                 elevatorID,
 		Acklist:            make([]string, 0),
 		ElevatorStatusList: map[string]single_elevator.State{elevatorID: single_elevator.State},
@@ -31,6 +30,27 @@ func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.R
 	}
 	return HallOrderStatus
 }
+
+	//ELEVATOR ID - legge til cab på bestemt ID 
+func updateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, B bool) WorldView {
+	if B == true { //mottar knappetrykk som ny bestilling (buttonpressedchannel)
+		if buttonPressed == elevio.BT_HallDown || elevio.BT_HallUp {
+			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.Unconfirmed 
+		} 
+		if buttonPressed == elevio.BT_Cab { //her må worldview være local
+			localWorldView.CabRequests[buttonPressed.Floor] = true 
+		}
+	} else { //sender tilbake knappetrykk fra FSM (ordercompletedchannel)
+		if buttonPressed == elevio.BT_HallDown || elevio.BT_HallUp {
+			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.Completed
+		} 
+		if buttonPressed == elevio.BT_Cab { //her må worldview være local
+			localWorldView.CabRequests[buttonPressed.Floor] = false 
+		}
+	}
+	return localWorldView
+}
+
 
 func ResetAckList(localWorldView *WorldView) {
 	localWorldView.Acklist = make([]string, 0)
@@ -118,3 +138,23 @@ func MergeCABandHRAout(OutputAssigner map[string][][2]bool) single_elevator.Orde
 	//legge til cab orders som en kolonne på høyre side 
 	//alt må være bools og en 4x3 matrise 
 	//return ordermatrix 
+
+
+
+
+
+
+	func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators  []string) WorldView {
+		//sjekke hvor mange som er i live??? hva skal vi gjøre med den infoen 
+		//disse IDene må acknowledge og være i Acklist 
+
+		if len(localWorldView.Acklist) < len(updatedWorldView.Acklist) {
+			localWorldView = &updatedWorldView
+			localWorldView.Acklist = append(localWorldView.ID)
+		}
+		if len(localWorldView.Acklist) = len(updatedWorldView.Acklist) {
+			continue 
+		} 
+	}
+//alle må ha oppdatert worldview før den kan assignes og utføres 
+

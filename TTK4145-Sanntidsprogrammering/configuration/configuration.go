@@ -20,10 +20,16 @@ type RequestState int
 
 const (
 	None RequestState = iota
-	Order //UnConfirmed
+	UnConfirmed
+	// barrier everyone needs acknowlade before going to confirmed
 	Confirmed
 	Complete
 )
+
+type OrderMsg {
+	state RequestState,
+	ack_list map[string]bool,
+}
 
 //hva skal vi gjøre med numPeers?
 
