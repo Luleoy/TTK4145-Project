@@ -81,7 +81,6 @@ func WorldViewManager(
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView //la til peker?
-			ResetAckList(localWorldView)          //tømmer ackliste og legger til egen ID
 
 		case complete := <-completedOrderChannel:
 			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false) // false if remove this order
@@ -91,7 +90,6 @@ func WorldViewManager(
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView //la til peker?
-			ResetAckList(localWorldView)          //tømmer ackliste og legger til egen ID
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis

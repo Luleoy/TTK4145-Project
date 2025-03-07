@@ -16,19 +16,19 @@ const (
 	SendWVTimer      = 20 * time.Second
 )
 
-type RequestState int
+type OrderState int
 
 const (
-	None RequestState = iota
+	None OrderState = iota
 	UnConfirmed
 	// barrier everyone needs acknowlade before going to confirmed
 	Confirmed
 	Complete
 )
 
-type OrderMsg {
-	state RequestState,
-	ack_list map[string]bool,
+type OrderMsg struct {
+	StateofOrder OrderState //state of HALL or CAB order
+	AckList      map[string]bool
 }
 
 //hva skal vi gjøre med numPeers?
