@@ -171,6 +171,7 @@ func SingleElevator(
 }
 
 /*
+initialization of elevator. go down to nearest floor.- hva har andre gjort?
 default/panic bør det implementeres over alt?
 obstruction - ??
 doesnt know its in between two floors when stopping in between two floors

@@ -7,28 +7,39 @@ import (
 	"TTK4145-Heislab/single_elevator"
 )
 
-// REQUESTSTATE INT - lage en funksjon som konverterer fra WorldView til OrderMatrix som vi kan bruke
+//HVA MÅ GJØRES???
+//LEGGE TIL ACKLIST PÅ ALT AV HALLORDER OG CABORDER
+//OrderMsg - Elev single_elevator.State, Cab  []configuration.OrderMsg
+//loope gjennom Cab buttons også i mergeworldviews
+//gå gjennom alle funksjoner
+//resette acklist ved OrderState endring
+//lage valid worldview funksjon
 
-func InitializeWorldView(elevatorID string) WorldView {
-	message := WorldView{
-		ID:                 elevatorID,
-		Acklist:            make([]string, 0),
-		ElevatorStatusList: map[string]single_elevator.State{elevatorID: single_elevator.State},
-		HallOrderStatus:    InitializeHallOrderStatus(),
-		//CabRequests?
-	}
-	return message
-}
+//mismatch type - hallorderstatus og elevatorstatuslist
 
 // funksjon som skal initialisere hallorderstatus. skal etterhvert ha false på alle utenom confirmed med true
-func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.RequestState {
-	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.RequestState, configuration.NumFloors)
+func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
+	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderState, configuration.NumFloors)
 	for floor := range HallOrderStatus {
 		for button := range HallOrderStatus[floor] {
 			HallOrderStatus[floor][button] = configuration.None
 		}
 	}
 	return HallOrderStatus
+}
+
+func InitializeWorldView(elevatorID string) WorldView {
+	wv := WorldView{
+		ID:                 elevatorID,
+		ElevatorStatusList: make(map[string]ElevStateMsg),
+		HallOrderStatus:    InitializeHallOrderStatus(),
+	}
+	elevatorState := ElevStateMsg{
+		Elev: single_elevator.State{},
+		Cab:  make([]configuration.OrderMsg, configuration.NumFloors),
+	}
+	wv.ElevatorStatusList[elevatorID] = elevatorState
+	return wv
 }
 
 // ELEVATOR ID - legge til cab på bestemt ID
@@ -51,9 +62,31 @@ func updateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.B
 	return localWorldView
 }
 
-func ResetAckList(localWorldView *WorldView) {
-	localWorldView.Acklist = make([]string, 0)
-	localWorldView.Acklist = append(localWorldView.Acklist, localWorldView.ID)
+func ResetAckListHall(localWorldView *WorldView) {
+	// Loop through all floors and buttons in HallOrderStatus
+	for floor := range localWorldView.HallOrderStatus {
+		for btn := range localWorldView.HallOrderStatus[floor] {
+			// Reset AckList for each hall order
+			localWorldView.HallOrderStatus[floor][btn].AckList = make(map[string]bool)
+			// Add the local elevator's ID to the AckList
+			localWorldView.HallOrderStatus[floor][btn].AckList[localWorldView.ID] = true
+		}
+	}
+}
+
+func ResetAckListCAB(localWorldView *WorldView) {
+	// Iterate through all elevators in ElevatorStatusList
+	for elevatorID, elevState := range localWorldView.ElevatorStatusList {
+		// Iterate through all cab orders (floors)
+		for floor := range elevState.Cab {
+			// Reset the AckList for this cab order
+			elevState.Cab[floor].AckList = make(map[string]bool)
+			// Add the local elevator's ID to the AckList
+			elevState.Cab[floor].AckList[localWorldView.ID] = true
+		}
+		// Save the updated state back to the map
+		localWorldView.ElevatorStatusList[elevatorID] = elevState
+	}
 }
 
 func ConvertHallOrderStatustoBool(WorldView WorldView) [][2]bool {
@@ -125,16 +158,22 @@ func AssignOrder(WorldView WorldView) map[string][][2]bool { //map med ID som n�
 	//konvertere outputAssigner til matriseform
 }
 
+func GetOurCAB(localWorldView WorldView, ourID string) []configuration.OrderMsg { //må man ha med ID her?
+	return localWorldView.ElevatorStatusList[ourID].Cab
+}
+
 //output fra assigner - map av id og hvilke ordre som skal tas
 //legge til cab orders som en kolonne på høyre side
 //alt må være bools og en 4x3 matrise
 //return ordermatrix
 
-func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
+func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView { //ikke iterert over CAB!!!!
 	//sjekke hvor mange som er i live??? hva skal vi gjøre med den infoen
 	//disse IDene må acknowledge og være i Acklist
+	//alle må ha oppdatert worldview før den kan assignes og utføres
 
 	//iterate over elevatorstatuslist in updatedworldview ad update the corresponding entries in the localworldview
+	//den lokale verden får den nyeste informasjonen om alle heiser
 	for id, state := range updatedWorldView.ElevatorStatusList {
 		localWorldView.ElevatorStatusList[id] = state
 	}
@@ -145,6 +184,10 @@ func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAl
 			//get the local and updated orders for floor and button
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
 			updatedOrder := updatedWorldView.HallOrderStatus[floor][button]
+
+			if localOrder.AckList == nil {
+				localOrder.AckList = make(map[string]bool)
+			}
 
 			//merge acklist for this order
 			for id := range updatedOrder.AckList {
@@ -172,10 +215,4 @@ func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAl
 		}
 	}
 	return localWorldView
-}
-
-//alle må ha oppdatert worldview før den kan assignes og utføres
-
-func GetOurCAB(localWorldView WorldView, ourID string) []bool { //må man ha med ID her?
-	return localWorldView.ElevatorStatusList[ourID].Cab
 }

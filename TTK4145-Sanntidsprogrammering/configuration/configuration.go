@@ -21,18 +21,12 @@ type OrderState int
 const (
 	None OrderState = iota
 	UnConfirmed
-	// barrier everyone needs acknowlade before going to confirmed
+	//barrier everyone needs to acknowledge before going to confirmed
 	Confirmed
-	Complete
+	Completed
 )
 
 type OrderMsg struct {
 	StateofOrder OrderState //state of HALL or CAB order
 	AckList      map[string]bool
 }
-
-//hva skal vi gjøre med numPeers?
-
-//legge typen i configuration. Lage kanalene de skal sendes på i main.g. structuren på hva som blir sendt på kanalen
-
-//hva skla detligge i const, struct?

@@ -1,15 +1,6 @@
 package worldview
 
-//håndtering av CAB requests i WorldView sånn at vi ikke trenger å save to file - CAB reuests when converting to HRAInput
-//konvertering fra Worldstate til HRA til Single Elevator
 //unavailable state på single elevator - OPPDATERE Unavailable bool i Single Elevator
-//assignedOrdersChannel vs newOrderChannel - sender OrderMatrix på newOrderChannel. må konvertere
-
-//FSM - single elevator konvertering og kommunikasjon
-//neworderchannel og completedorderchannel
-//buttonpressedchannel??
-
-//test
 
 import (
 	"TTK4145-Heislab/configuration"
@@ -27,13 +18,9 @@ type ElevStateMsg struct {
 
 // oppdaterer newlocalstate i single_elevator FSM
 type WorldView struct {
-	ID string
-	// Acklist []string
-
-	ElevatorStatusList map[string]ElevStateMsg //legger inn al			hvordan fysisk kobler man opp....
-	// l info om hver heis; floor, direction, obstructed, behaviour
-	HallOrderStatus [][configuration.NumButtons - 1]configuration.OrderMsg
-	// CabRequests        [configuration.NumFloors]configuration.OrderMsg //hvis vi broadcaster cab buttons her, slipper vi å lagre alt over i en fil
+	ID                 string
+	ElevatorStatusList map[string]ElevStateMsg
+	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMsg
 	//Burde vi broadcaste om heisen er i live eller ikke/unavailable??
 }
 
@@ -55,9 +42,6 @@ func WorldViewManager(
 
 	//timer for når Local World View skal oppdateres
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer) * time.Millisecond)
-	numPeers := 0 //må denne initialiseres?
-
-	orderDistributed := make([][configuration.NumButtons - 1]bool, configuration.NumFloors) //liste for at alle heisene skal vite at de har distribuert order
 
 	IDsAliveElevators := []string{}
 
@@ -75,8 +59,7 @@ func WorldViewManager(
 
 		case buttonPressed := <-buttonPressedChannel: //knappetrykk. tar inn button events. Dette er neworder. Må skille fra Neworderchannel i single_elevator. sjekk ut hvor den skal defineres etc
 			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true) // false if remove this order
-			//feilhåndtering
-			if !validWorldView(newLocalWorldView) { //ikke laget validWorldView enda
+			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
 			localWorldView = &newLocalWorldView
@@ -84,10 +67,10 @@ func WorldViewManager(
 
 		case complete := <-completedOrderChannel:
 			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false) // false if remove this order
-			//feilhåndtering
-			if !validWorldView(newLocalWorldView) { //ikke laget validWorldView enda
+			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
+
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView //la til peker?
 
@@ -100,7 +83,7 @@ func WorldViewManager(
 			//tildeler ordre hvis de ikke allerede er distribuert
 
 			newLocalWorldView = MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
-			if !validWorldView(newLocalWorldView) {
+			if !ValidateWorldView(newLocalWorldView) { //ikke laget validWorldView enda
 				continue
 			}
 			// send new worldview on network
