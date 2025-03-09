@@ -1,8 +1,8 @@
-package worldview 
-
-package main
+package worldview
 
 import (
+	"TTK4145-Heislab/configuration"
+	"TTK4145-Heislab/single_elevator"
 	"fmt"
 )
 
@@ -72,13 +72,13 @@ func ValidateElevatorState(id string, elevStateMsg ElevStateMsg) bool {
 	return true
 }
 
-func ValidateOrder(order OrderMsg) bool {
+func ValidateOrder(order configuration.OrderMsg) bool {
 	// Ensure valid state transitions
-	if order.StateofOrder == Confirmed && len(order.AckList) == 0 {
+	if order.StateofOrder == configuration.Confirmed && len(order.AckList) == 0 {
 		fmt.Println("Validation failed: Order marked as Confirmed but has no acknowledgments")
 		return false
 	}
-	if order.StateofOrder == Completed && len(order.AckList) == 0 {
+	if order.StateofOrder == configuration.Completed && len(order.AckList) == 0 {
 		fmt.Println("Validation failed: Order marked as Completed but has no history of acknowledgment")
 		return false
 	}
@@ -92,7 +92,7 @@ func ValidateOrder(order OrderMsg) bool {
 	return true
 }
 
-func ValidateElevatorCoreState(state single_elevator.State) bool {
+func ValidateElevatorCoreState(state single_elevator.Elevator) bool {
 	// Ensure floor is within a valid range
 	if state.Floor < 0 || state.Floor >= configuration.NumFloors {
 		fmt.Printf("Validation failed: Invalid floor value %d\n", state.Floor)
@@ -100,17 +100,16 @@ func ValidateElevatorCoreState(state single_elevator.State) bool {
 	}
 
 	// Ensure behavior is valid
-	if state.Behaviour != Idle && state.Behaviour != Moving && state.Behaviour != DoorOpen {
+	if state.Behaviour != single_elevator.Idle && state.Behaviour != single_elevator.Moving && state.Behaviour != single_elevator.DoorOpen {
 		fmt.Printf("Validation failed: Invalid behavior %d\n", state.Behaviour)
 		return false
 	}
 
 	// Ensure an elevator cannot be both Moving and Idle
-	if state.Behaviour == Moving && state.Behaviour == Idle {
+	if state.Behaviour == single_elevator.Moving && state.Behaviour == single_elevator.Idle {
 		fmt.Println("Validation failed: Elevator cannot be both Moving and Idle at the same time")
 		return false
 	}
 
 	return true
 }
-

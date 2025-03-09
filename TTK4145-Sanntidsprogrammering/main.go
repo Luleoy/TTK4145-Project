@@ -17,7 +17,7 @@ func main() {
 	// Communication channels
 	newOrderChannel := make(chan single_elevator.Orders, configuration.Buffer)
 	completedOrderChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
-	newLocalStateChannel := make(chan single_elevator.State, configuration.Buffer)
+	newLocalStateChannel := make(chan single_elevator.Elevator, configuration.Buffer)
 	buttonPressedChannel := make(chan elevio.ButtonEvent)
 
 	// Polling channels

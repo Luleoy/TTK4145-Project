@@ -11,7 +11,7 @@ func CommunicationHandler(
 
 	elevatorID string,
 	peerUpdateChannel <-chan peers.PeerUpdate,
-	NewlocalElevatorChannel <-chan single_elevator.State,
+	NewlocalElevatorChannel <-chan single_elevator.Elevator,
 	peerTXEnableChannel chan<- bool,
 	IDPeersChannel chan<- []string,
 

@@ -1,31 +1,39 @@
 package worldview
 
 import (
-	"TTK4145-Heislab/AssignerExecutable"
+	"TTK4145-Heislab/AssignerExecutable" //har dette noe med go.mod filen i assignerexecutable??
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
 )
 
 //HVA MÅ GJØRES???
-//LEGGE TIL ACKLIST PÅ ALT AV HALLORDER OG CABORDER
-//OrderMsg - Elev single_elevator.State, Cab  []configuration.OrderMsg
 //loope gjennom Cab buttons også i mergeworldviews
-//gå gjennom alle funksjoner
 //resette acklist ved OrderState endring
-//lage valid worldview funksjon
-
 //mismatch type - hallorderstatus og elevatorstatuslist
 
-// funksjon som skal initialisere hallorderstatus. skal etterhvert ha false på alle utenom confirmed med true
 func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
-	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderState, configuration.NumFloors)
+	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderMsg, configuration.NumFloors)
 	for floor := range HallOrderStatus {
 		for button := range HallOrderStatus[floor] {
-			HallOrderStatus[floor][button] = configuration.None
+			HallOrderStatus[floor][button] = configuration.OrderMsg{
+				StateofOrder: configuration.None,
+				AckList:      make(map[string]bool),
+			}
 		}
 	}
 	return HallOrderStatus
+}
+
+func InitializeCabOrders() []configuration.OrderMsg {
+	CabOrders := make([]configuration.OrderMsg, configuration.NumFloors)
+	for floor := range CabOrders {
+		CabOrders[floor] = configuration.OrderMsg{
+			StateofOrder: configuration.None,
+			AckList:      make(map[string]bool),
+		}
+	}
+	return CabOrders
 }
 
 func InitializeWorldView(elevatorID string) WorldView {
@@ -35,66 +43,61 @@ func InitializeWorldView(elevatorID string) WorldView {
 		HallOrderStatus:    InitializeHallOrderStatus(),
 	}
 	elevatorState := ElevStateMsg{
-		Elev: single_elevator.State{},
-		Cab:  make([]configuration.OrderMsg, configuration.NumFloors),
+		Elev: single_elevator.Elevator{},
+		Cab:  InitializeCabOrders(),
 	}
 	wv.ElevatorStatusList[elevatorID] = elevatorState
 	return wv
 }
 
 // ELEVATOR ID - legge til cab på bestemt ID
-func updateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, B bool) WorldView {
-	if B == true { //mottar knappetrykk som ny bestilling (buttonpressedchannel)
-		if buttonPressed == elevio.BT_HallDown || elevio.BT_HallUp {
-			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.Unconfirmed
+func updateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
+	if isNewOrder {
+		switch buttonPressed.Button {
+		case elevio.BT_HallUp, elevio.BT_HallDown:
+			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.OrderMsg{
+				StateofOrder: configuration.UnConfirmed,
+				AckList:      make(map[string]bool),
+			}
+			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].AckList[localWorldView.ID] = true
+		case elevio.BT_Cab:
+			localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor] = configuration.OrderMsg{
+				StateofOrder: configuration.UnConfirmed,
+				AckList:      make(map[string]bool),
+			}
+			localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].AckList[localWorldView.ID] = true
 		}
-		if buttonPressed == elevio.BT_Cab { //her må worldview være local
-			localWorldView.CabRequests[buttonPressed.Floor] = true
-		}
-	} else { //sender tilbake knappetrykk fra FSM (ordercompletedchannel)
-		if buttonPressed == elevio.BT_HallDown || elevio.BT_HallUp {
-			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.Completed
-		}
-		if buttonPressed == elevio.BT_Cab { //her må worldview være local
-			localWorldView.CabRequests[buttonPressed.Floor] = false
+	} else {
+		switch buttonPressed.Button {
+		case elevio.BT_HallUp, elevio.BT_HallDown:
+			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder = configuration.Completed
+		case elevio.BT_Cab:
+			localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].StateofOrder = configuration.Completed
 		}
 	}
-	return localWorldView
+	return *localWorldView
 }
 
-func ResetAckListHall(localWorldView *WorldView) {
-	// Loop through all floors and buttons in HallOrderStatus
+func ResetAckList(localWorldView *WorldView) {
 	for floor := range localWorldView.HallOrderStatus {
 		for btn := range localWorldView.HallOrderStatus[floor] {
-			// Reset AckList for each hall order
 			localWorldView.HallOrderStatus[floor][btn].AckList = make(map[string]bool)
-			// Add the local elevator's ID to the AckList
 			localWorldView.HallOrderStatus[floor][btn].AckList[localWorldView.ID] = true
 		}
 	}
-}
-
-func ResetAckListCAB(localWorldView *WorldView) {
-	// Iterate through all elevators in ElevatorStatusList
-	for elevatorID, elevState := range localWorldView.ElevatorStatusList {
-		// Iterate through all cab orders (floors)
+	for _, elevState := range localWorldView.ElevatorStatusList {
 		for floor := range elevState.Cab {
-			// Reset the AckList for this cab order
 			elevState.Cab[floor].AckList = make(map[string]bool)
-			// Add the local elevator's ID to the AckList
 			elevState.Cab[floor].AckList[localWorldView.ID] = true
 		}
-		// Save the updated state back to the map
-		localWorldView.ElevatorStatusList[elevatorID] = elevState
 	}
 }
 
-func ConvertHallOrderStatustoBool(WorldView WorldView) [][2]bool {
-	// Opprett en fast strukturert slice med [2]bool per etasje
+func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 	boolMatrix := make([][2]bool, configuration.NumFloors)
-	for floor := 0; floor < configuration.NumFloors; floor++ {
-		for button := 0; button < 2; button++ { // Kun 2 knapper per etasje (opp/ned)
-			if WorldView.HallOrderStatus[floor][button] == configuration.Confirmed {
+	for floor := range boolMatrix {
+		for button := 0; button < 2; button++ {
+			if worldView.HallOrderStatus[floor][button].StateofOrder == configuration.Confirmed {
 				boolMatrix[floor][button] = true
 			} else {
 				boolMatrix[floor][button] = false
@@ -106,22 +109,29 @@ func ConvertHallOrderStatustoBool(WorldView WorldView) [][2]bool {
 
 // oversette WorldView til HRAInput (tar inn WorldView og konverterer til format som kan brukes av HRA)
 // merge hall request and cab requests
-func HRAInputFormatting(WorldView WorldView) AssignerExecutable.HRAInput {
+func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
+	hallRequests := ConvertHallOrderStatestoBool(worldView)
 	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
-	hallrequests := ConvertHallOrderStatustoBool(WorldView)
-
-	for ID := range WorldView.Acklist {
-		if !WorldView.ElevatorStatusList[WorldView.Acklist[ID]].Unavailable { //har ikke en unavailable
-			elevatorStates[WorldView.Acklist[ID]] = AssignerExecutable.HRAElevState{
-				Behaviour: single_elevator.ToString(WorldView.ElevatorStatusList[WorldView.Acklist[ID]].Behaviour),
-				Floor:     WorldView.ElevatorStatusList[WorldView.Acklist[ID]].Floor,
-				Direction: elevio.DirToString(elevio.MotorDirection(WorldView.ElevatorStatusList[WorldView.Acklist[ID]].Direction)), //Direction: elevio.DirToString(WorldView.ElevatorStatusList[WorldView.Acklist[ID]].Direction),
-				//CABREQUESTS - hvordan håndtere (HARAINput har CAB requests)
+	for _, elevatorID := range IDsAliveElevators {
+		elevState, exists := worldView.ElevatorStatusList[elevatorID]
+		if !exists {
+			continue
+		}
+		if !elevState.Elev.Unavailable {
+			cabRequests := make([]bool, configuration.NumFloors)
+			for floor, cabOrder := range elevState.Cab {
+				cabRequests[floor] = cabOrder.StateofOrder == configuration.Confirmed
+			}
+			elevatorStates[elevatorID] = AssignerExecutable.HRAElevState{
+				Behaviour:   single_elevator.ToString(elevState.Elev.Behaviour),
+				Floor:       elevState.Elev.Floor,
+				Direction:   elevio.DirToString(elevio.MotorDirection(elevState.Elev.Direction)),
+				CabRequests: cabRequests,
 			}
 		}
 	}
 	input := AssignerExecutable.HRAInput{
-		HallRequests: hallrequests,
+		HallRequests: hallRequests,
 		States:       elevatorStates,
 	}
 	return input
@@ -134,28 +144,26 @@ func HRAInputFormatting(WorldView WorldView) AssignerExecutable.HRAInput {
 // velge riktig elevator og sette en på riktig sted til dens ordermatrix
 // MergeCABandHRA → Merges the converted HallOrderStatus with CabRequests to form a 4x3 matrix.
 func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) single_elevator.Orders {
-	var OrderMatrix single_elevator.Orders //initialiserer ordermatrix - fjerne initialisering i Single Elevator
-	for floor, cabbutton := range Ourcab {
-		if cabbutton {
-			OrderMatrix[floor][2] = true // Bruker `floor` som indeks
+	var OrderMatrix single_elevator.Orders
+	for floor, cabButton := range Ourcab {
+		if cabButton {
+			OrderMatrix[floor][2] = true
 		}
 	}
-	//ikke riktig iterasjon??
-	for floor, buttons := range OurHall { // Iterer over etasjene
-		for buttonType, isPressed := range buttons { // Iterer over knappene (opp/ned)
+	for floor, buttons := range OurHall {
+		for buttonType, isPressed := range buttons {
 			if isPressed {
-				OrderMatrix[floor][buttonType] = true // Oppdater OrderMatrix
+				OrderMatrix[floor][buttonType] = true
 			}
 		}
 	}
 	return OrderMatrix
 }
 
-func AssignOrder(WorldView WorldView) map[string][][2]bool { //map med ID som nøkkel, og arrays med 2 bolske verdier med orders true or false
-	input := HRAInputFormatting(WorldView) //Konverterer WorldView til riktig input for Assigner
+func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
+	input := HRAInputFormatting(worldView, IDsAliveElevators)
 	outputAssigner := AssignerExecutable.Assigner(input)
 	return outputAssigner
-	//konvertere outputAssigner til matriseform
 }
 
 func GetOurCAB(localWorldView WorldView, ourID string) []configuration.OrderMsg { //må man ha med ID her?

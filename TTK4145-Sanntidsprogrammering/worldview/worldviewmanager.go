@@ -12,7 +12,7 @@ import (
 // REQUESTSTATE INT - lage en funksjon som konverterer fra WorldView til OrderMatrix som vi kan bruke
 // vi vil ha noe spesifikt å sende til FSM
 type ElevStateMsg struct {
-	Elev single_elevator.State
+	Elev single_elevator.Elevator
 	Cab  []configuration.OrderMsg
 }
 
