@@ -1,6 +1,7 @@
 package worldview
 
 //unavailable state på single elevator - OPPDATERE Unavailable bool i Single Elevator
+//lys
 
 import (
 	"TTK4145-Heislab/configuration"
@@ -9,19 +10,16 @@ import (
 	"time"
 )
 
-// REQUESTSTATE INT - lage en funksjon som konverterer fra WorldView til OrderMatrix som vi kan bruke
-// vi vil ha noe spesifikt å sende til FSM
 type ElevStateMsg struct {
 	Elev single_elevator.Elevator
 	Cab  []configuration.OrderMsg
 }
 
-// oppdaterer newlocalstate i single_elevator FSM
 type WorldView struct {
 	ID                 string
 	ElevatorStatusList map[string]ElevStateMsg
 	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMsg
-	//Burde vi broadcaste om heisen er i live eller ikke/unavailable??
+	//Burde vi broadcaste om heisen er unavailable??
 }
 
 func WorldViewManager(
@@ -30,49 +28,45 @@ func WorldViewManager(
 	WorldViewRXChannel <-chan WorldView, //WorldView receiver
 	buttonPressedChannel <-chan elevio.ButtonEvent,
 	mergeChannel chan<- elevio.ButtonEvent,
-	newOrderChannel chan<- single_elevator.Orders, //skal brukes i single elevator - fra OrderManager
+	newOrderChannel chan<- single_elevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
 	numPeersChannel <-chan int,
 	IDPeersChannel <-chan []string,
 ) {
 
-	//initialize local world view to send on message channel
 	initLocalWorldView := InitializeWorldView(elevatorID)
-	localWorldView := &initLocalWorldView //bruke localworldview i casene fremover - DYP kopiere worldview
+	localWorldView := &initLocalWorldView
 
-	//timer for når Local World View skal oppdateres
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
 	IDsAliveElevators := []string{}
 
 	for {
-	OuterLoop: //break ut av hele for-loopen
 		select {
 		case IDList := <-IDPeersChannel:
-			numPeers = len(IDList)
 			IDsAliveElevators = IDList
 
-		case <-SendLocalWorldViewTimer.C: //local world view updates
+		case <-SendLocalWorldViewTimer.C:
 			localWorldView.ID = elevatorID
 			WorldViewTXChannel <- *localWorldView
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
-		case buttonPressed := <-buttonPressedChannel: //knappetrykk. tar inn button events. Dette er neworder. Må skille fra Neworderchannel i single_elevator. sjekk ut hvor den skal defineres etc
-			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true) // false if remove this order
+		case buttonPressed := <-buttonPressedChannel:
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
 			localWorldView = &newLocalWorldView
-			WorldViewTXChannel <- *localWorldView //la til peker?
+			WorldViewTXChannel <- *localWorldView
 
 		case complete := <-completedOrderChannel:
-			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false) // false if remove this order
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
 
 			localWorldView = &newLocalWorldView
-			WorldViewTXChannel <- *localWorldView //la til peker?
+			WorldViewTXChannel <- *localWorldView
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
@@ -82,17 +76,18 @@ func WorldViewManager(
 			//oppdatere hallorderstatus basert på status for order
 			//tildeler ordre hvis de ikke allerede er distribuert
 
-			newLocalWorldView = MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
+			newLocalWorldView := MergeWorldViews(*localWorldView, updatedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) { //ikke laget validWorldView enda
 				continue
 			}
-			// send new worldview on network
+			WorldViewTXChannel <- newLocalWorldView
+			// send new worldview on network - må gjøre noe med mergeworldviews?
 
 			//UPDATE HALLSTATUS TO CONFIRMED
 			//ackliste bare skal være så lang som aktive heiser
 			//SJEKKE OM ACKLIST ER LIKE LANG SOM AKTIVE HEISER - samme IDer
 
-			AssignHallOrders := AssignOrder(*localWorldView)
+			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
 			OurHall := AssignHallOrders[localWorldView.ID] //value ut av map
 			OurCab := GetOurCAB(*localWorldView, localWorldView.ID)
 			OrderMatrix := MergeCABandHRAout(OurHall, OurCab)
@@ -106,11 +101,9 @@ func WorldViewManager(
 				ordermatrix := covertToOrderMatrix(ourHal, ourCab)
 				updatedOrdersChan <- ordermatrix
 			*/
-
-			//assign order
-			// run HRA and send new ordermatrix to single elev
 		}
 	}
 }
 
 //lys
+//packetloss - håndterer vel egt dette?
