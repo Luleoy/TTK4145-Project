@@ -13,7 +13,7 @@ import (
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
 
 type HRAElevState struct {
-	Behavior    string `json:"behaviour"`
+	Behaviour    string `json:"behaviour"`
 	Floor       int    `json:"floor"`
 	Direction   string `json:"direction"`
 	CabRequests []bool `json:"cabRequests"`

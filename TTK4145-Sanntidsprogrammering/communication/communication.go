@@ -14,22 +14,14 @@ func CommunicationHandler(
 	NewlocalElevatorChannel <-chan single_elevator.Elevator,
 	peerTXEnableChannel chan<- bool,
 	IDPeersChannel chan<- []string,
+	WorldViewRXChannel <-chan worldview.WorldView,
 
 ) {
-
-	//initialisering
-	localWorldView := worldview.InitializeWorldView(elevatorID)
 
 	for {
 
 		select {
 
-		//case_ 5: Oppdateringer for den lokale heisen, trenger vi den??
-		case newLocalElevator := <-NewlocalElevatorChannel: //listning to channel
-			localWorldView.ElevatorStatusList[elevatorID] = newLocalElevator
-			cabRequest := GetCabRequests(newLocalElevator) //cabRequest brukes ikke videre i koden - CAB må hentes ut av WORLDVIEW
-
-		//Case 6:
 		//oppdatere på hvilke heiser som er aktive ( når heiser kommer på og forsvinner fra nettverket)
 		case peers := <-peerUpdateChannel: //lisning to channel
 
