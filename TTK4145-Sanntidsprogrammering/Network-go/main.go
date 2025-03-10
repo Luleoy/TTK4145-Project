@@ -1,9 +1,9 @@
-package main
+package main //kan vi ha to main filer?
 
 import (
-	"Network-go/network/bcast"
-	"Network-go/network/localip"
-	"Network-go/network/peers"
+	"TTK4145-Heislab/Network-go/network/bcast"
+	"TTK4145-Heislab/Network-go/network/localip"
+	"TTK4145-Heislab/Network-go/network/peers"
 	"flag"
 	"fmt"
 	"os"
@@ -89,7 +89,6 @@ func main() {
 		}
 	}
 }
-
 
 //to uike pce,verdensbilde infoer som du bruker på heisen, channel som lytter til en ordre på nettverket, tre heiser broadcast, distrubisjon, alle heiser info om hver andre og så bli enige, løse distubsjon hele verdensbilde, se distubsjonforelesning
 

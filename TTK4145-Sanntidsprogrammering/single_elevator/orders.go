@@ -5,13 +5,14 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 )
 
+/*
 func SetLights(orderMatrix Orders) { //skru av og på lys
 	for f := 0; f < configuration.NumFloors; f++ {
 		for b := 0; b < configuration.NumButtons; b++ {
 			elevio.SetButtonLamp(elevio.ButtonType(b), f, orderMatrix[f][b])
 		}
 	}
-}
+} */
 
 type Orders [configuration.NumFloors][configuration.NumButtons]bool //creating matrix to take orders. floors*buttons
 

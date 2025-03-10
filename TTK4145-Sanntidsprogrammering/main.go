@@ -12,7 +12,7 @@ func main() {
 
 	// Initialize elevator hardware
 	numFloors := configuration.NumFloors
-	elevio.Init("localhost:15657", numFloors)
+	elevio.Init("localhost:15658", numFloors) //elevator
 
 	// Communication channels
 	newOrderChannel := make(chan single_elevator.Orders, configuration.Buffer)
@@ -51,21 +51,6 @@ func main() {
 }
 
 /*
-need function to add orders to ordermatrix? (elevio_callButton)
-adding orders. where should we add order to matrix (true). setlights after? in FSM?
-sending ordermatrix in neworderchannel
-
-hva skal vi ha i main file
-
-code hand-in vs FAT test
-UDP - contact with server - what does this mean and how are we supposed to do it?
-
-*/
-
-/*
-PROJECT FURTHER
-Hvilken rekkefølge skal ting gjøres i?
-
 Network module
 - UDP connection (packet loss) - packet sending and receiving (message format - JSON?) **concurrency
 - Broadcasting (peer addresses, goroutine to periodically broadcast the elevator's state to all other peers)
@@ -80,5 +65,4 @@ Peer to Peer module
 Assigner/Decision making module (cost function)
 
 Fault Tolerance
-
 */

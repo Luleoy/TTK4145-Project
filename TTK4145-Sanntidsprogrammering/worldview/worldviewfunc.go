@@ -45,8 +45,7 @@ func InitializeWorldView(elevatorID string) WorldView {
 	return wv
 }
 
-// ELEVATOR ID - legge til cab på bestemt ID
-func updateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
+func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
 	if isNewOrder {
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
@@ -104,8 +103,6 @@ func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 	return boolMatrix
 }
 
-// feil
-// oversette WorldView til HRAInput (tar inn WorldView og konverterer til format som kan brukes av HRA)
 func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
 	hallRequests := ConvertHallOrderStatestoBool(worldView)
 	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
@@ -151,12 +148,6 @@ func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) single_elevator.Orders 
 	return OrderMatrix
 }
 
-func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
-	input := HRAInputFormatting(worldView, IDsAliveElevators)
-	outputAssigner := AssignerExecutable.Assigner(input)
-	return outputAssigner
-}
-
 func GetOurCAB(localWorldView WorldView, ourID string) []bool {
 	cabOrders := localWorldView.ElevatorStatusList[ourID].Cab
 	ourCab := make([]bool, len(cabOrders))
@@ -166,6 +157,32 @@ func GetOurCAB(localWorldView WorldView, ourID string) []bool {
 	return ourCab
 }
 
+func SetLights(localWorldView WorldView) {
+	for floor := range localWorldView.HallOrderStatus {
+		for button := 0; button < 2; button++ {
+			order := localWorldView.HallOrderStatus[floor][button]
+			Light := (order.StateofOrder == configuration.Confirmed || order.StateofOrder == configuration.UnConfirmed)
+			elevio.SetButtonLamp(elevio.ButtonType(button), floor, Light)
+		}
+	}
+	for id, elevatorState := range localWorldView.ElevatorStatusList {
+		if id == localWorldView.ID {
+			for floor, order := range elevatorState.Cab {
+				Light := (order.StateofOrder == configuration.Confirmed || order.StateofOrder == configuration.UnConfirmed)
+				elevio.SetButtonLamp(elevio.BT_Cab, floor, Light)
+			}
+		}
+	}
+}
+
+// HJELP
+func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
+	input := HRAInputFormatting(worldView, IDsAliveElevators)
+	outputAssigner := AssignerExecutable.Assigner(input)
+	return outputAssigner
+}
+
+// HJELP
 func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	for id, state := range updatedWorldView.ElevatorStatusList { // Iterate over elevatorstatuslist in updatedWorldView and update the corresponding entries in the localWorldView
 		localWorldView.ElevatorStatusList[id] = state

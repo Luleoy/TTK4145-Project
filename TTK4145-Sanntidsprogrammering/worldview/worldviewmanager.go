@@ -27,10 +27,8 @@ func WorldViewManager(
 	WorldViewTXChannel chan<- WorldView, //WorldView transmitter
 	WorldViewRXChannel <-chan WorldView, //WorldView receiver
 	buttonPressedChannel <-chan elevio.ButtonEvent,
-	mergeChannel chan<- elevio.ButtonEvent,
 	newOrderChannel chan<- single_elevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
-	numPeersChannel <-chan int,
 	IDPeersChannel <-chan []string,
 ) {
 
@@ -49,10 +47,11 @@ func WorldViewManager(
 		case <-SendLocalWorldViewTimer.C:
 			localWorldView.ID = elevatorID
 			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView) //riktig oppdatering av lys?
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
 		case buttonPressed := <-buttonPressedChannel:
-			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true)
+			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
@@ -60,7 +59,7 @@ func WorldViewManager(
 			WorldViewTXChannel <- *localWorldView
 
 		case complete := <-completedOrderChannel:
-			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false)
+			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, complete, false)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
