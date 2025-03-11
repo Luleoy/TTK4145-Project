@@ -62,8 +62,23 @@ func SingleElevator(
 ) {
 	//Initialization of elevator
 	fmt.Println("setting motor down")
-	elevio.SetMotorDirection(elevio.MD_Down)
-	state := Elevator{Direction: Down, Behaviour: Moving}
+
+	//elevio.SetMotorDirection(elevio.MD_Down)
+	//state := Elevator{Direction: Down, Behaviour: Moving}
+	var state Elevator
+	currentFloor := elevio.GetFloor()
+
+	if currentFloor != -1 {
+		fmt.Println("Heis starter i etasje", currentFloor)
+		state = Elevator{Floor: currentFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+	} else {
+		fmt.Println("Elevator beetween floors, go down")
+		elevio.SetMotorDirection(elevio.MD_Down)
+		closestFloor := findClosestFloor()
+		fmt.Println("floor found: ", closestFloor)
+		elevio.SetMotorDirection(elevio.MD_Stop)
+		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+	}
 
 	floorEnteredChannel := make(chan int)
 	obstructedChannel := make(chan bool, 16)

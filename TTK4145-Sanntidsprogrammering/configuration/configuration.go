@@ -14,6 +14,9 @@ const (
 	DoorOpenDuration = 3 * time.Second
 	WatchdogTime     = 5 * time.Second
 	SendWVTimer      = 20 * time.Second
+
+	PeersPort     = 16969
+	BroadcastPort = 16970
 )
 
 type OrderState int

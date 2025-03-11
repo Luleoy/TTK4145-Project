@@ -3,6 +3,7 @@ package single_elevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
+	"time"
 )
 
 /*
@@ -120,5 +121,15 @@ func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) D
 		}
 	default:
 		return DirectionBehaviourPair{elevio.MD_Stop, Idle}
+	}
+}
+
+func findClosestFloor() int {
+	for {
+		floor := elevio.GetFloor()
+		if floor != -1 {
+			return floor
+		}
+		time.Sleep(100 * time.Millisecond) // Sjekker hvert 100 ms
 	}
 }
