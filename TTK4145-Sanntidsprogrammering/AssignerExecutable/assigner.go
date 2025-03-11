@@ -13,7 +13,7 @@ import (
 // This means they must start with a capital letter, so we need to use field renaming struct tags to make them camelCase
 
 type HRAElevState struct {
-	Behaviour    string `json:"behaviour"`
+	Behavior    string `json:"behavior"`
 	Floor       int    `json:"floor"`
 	Direction   string `json:"direction"`
 	CabRequests []bool `json:"cabRequests"`
@@ -30,8 +30,7 @@ func PrintHRAInput(input HRAInput) {
 	}
 }
 
-// legger til alt fra assigner filen inn i en funksjon slik at den kan kontinuerlig kalles på
-func Assigner(input HRAInput) map[string][][2]bool { //burde vi returnere order matrix?
+func Assigner(input HRAInput) map[string][][2]bool {
 	hraExecutable := ""
 	switch runtime.GOOS {
 	case "linux":
@@ -46,15 +45,13 @@ func Assigner(input HRAInput) map[string][][2]bool { //burde vi returnere order 
 	if err != nil {
 		fmt.Println("json.Marshal error: ", err)
 		panic(err)
-		//return
 	}
 
-	ret, err := exec.Command("executables/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
+	ret, err := exec.Command("AssignerExecutable/executables/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
 		fmt.Println("exec.Command error: ", err)
 		fmt.Println(string(ret))
 		panic(err)
-		//return
 	}
 
 	output := new(map[string][][2]bool)
@@ -62,12 +59,9 @@ func Assigner(input HRAInput) map[string][][2]bool { //burde vi returnere order 
 	if err != nil {
 		fmt.Println("json.Unmarshal error: ", err)
 		panic(err)
-		//return
 	}
 
-	//må returnere ID siden vi skal bestemme hvilken heis som skal ta orderen
 	return *output
-	//convert output to matrix sånn at dette kan tas rett inn i order manager??
 }
 
 /*OUTPUT FRA HALL ASSIGNER - må sendes til order manager. Order manager må legge sammen egen matrise med matrise fra hall assigner. 1+1 skal ikke bli 2.
@@ -88,12 +82,3 @@ må sende hver av linjene til riktig heis. i order manager konverterer vi fra st
 	[false, false],
 	[false, false]]
 }*/
-
-//HALL BUTTONS SKAL PÅ PÅ ALLE HEISER
-//ORDER MANAGER: 1 I MATRISEN, LYSET PÅ OG ORDEREN SKAL TAS
-
-//verdensbilde eks
-//valid state. broadcaste
-//alle har samme verdensbilde, alle kjører samme algoritmen
-//knappetrykk som order
-//UDP broadcast example

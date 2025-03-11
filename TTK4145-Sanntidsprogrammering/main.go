@@ -1,4 +1,4 @@
-package main
+/* package main
 
 import (
 	"TTK4145-Heislab/configuration"
@@ -50,7 +50,7 @@ func main() {
 	select {}
 }
 
-/*
+
 Network module
 - UDP connection (packet loss) - packet sending and receiving (message format - JSON?) **concurrency
 - Broadcasting (peer addresses, goroutine to periodically broadcast the elevator's state to all other peers)
@@ -65,4 +65,71 @@ Peer to Peer module
 Assigner/Decision making module (cost function)
 
 Fault Tolerance
-*/
+
+*/ 
+
+package main
+
+import (
+	"fmt"
+	"TTK4145-Heislab/worldview"
+	"TTK4145-Heislab/configuration"
+)
+
+func TestMergeWorldViews() {
+	// Opprett et lokalt verdensbilde (localWorldView)
+	elevatorID := "elev1"
+	localWorldView := worldview.InitializeWorldView(elevatorID)
+	localWorldView.HallOrderStatus[1][0].StateofOrder = configuration.UnConfirmed
+
+	// Sett opp en annen versjon av verdensbildet (updatedWorldView)
+	updatedWorldView := worldview.InitializeWorldView(elevatorID)
+
+	// Definer aktive heiser
+	IDsAliveElevators := []string{"elev1", "elev2"}
+
+	// Simuler at en heis trykker på en knapp i `updatedWorldView`
+	updatedWorldView.HallOrderStatus[1][0].StateofOrder = configuration.UnConfirmed
+	updatedWorldView.HallOrderStatus[1][0].AckList["elev2"] = true
+
+	// Simuler at en annen heis har en cab-bestilling
+	updatedWorldView.ElevatorStatusList["elev2"] = worldview.ElevStateMsg{
+		Cab: []configuration.OrderMsg{
+			{StateofOrder: configuration.Confirmed, AckList: map[string]bool{"elev2": true}},
+			{StateofOrder: configuration.UnConfirmed, AckList: map[string]bool{"elev2": true}},
+			{StateofOrder: configuration.None},
+			{StateofOrder: configuration.None},
+		},
+	}
+
+	// Kall funksjonen vi tester
+	mergedWorldView := worldview.MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
+	
+	// Forventet output: HallOrderStatus[1][0] skal bli Confirmed hvis alle aktive heiser har ACK-et
+	expectedHallStatus := configuration.Confirmed
+	if mergedWorldView.HallOrderStatus[1][0].StateofOrder != expectedHallStatus {
+		fmt.Printf("Feil: HallOrderStatus[1][0] er %v, forventet %v\n",
+			mergedWorldView.HallOrderStatus[1][0].StateofOrder, expectedHallStatus)
+	}
+
+	// Sjekk om ACK-listene er riktig oppdatert
+	if !mergedWorldView.HallOrderStatus[1][0].AckList["elev1"] || !mergedWorldView.HallOrderStatus[1][0].AckList["elev2"] {
+		fmt.Println("Feil: ACK-listen inneholder ikke alle aktive heiser")
+	}
+
+	// Sjekk om cab-bestillingene er korrekt slått sammen
+	expectedCabStatus := configuration.Confirmed
+	if mergedWorldView.ElevatorStatusList["elev2"].Cab[0].StateofOrder != expectedCabStatus {
+		fmt.Printf("Feil: Elev2 Cab[0] er %v, forventet %v\n",
+			mergedWorldView.ElevatorStatusList["elev2"].Cab[0].StateofOrder, expectedCabStatus)
+	}
+
+	// Utskrift for vellykket test
+	fmt.Println("Test MergeWorldViews fullført!")
+}
+
+func main() {
+	TestMergeWorldViews()
+}
+
+
