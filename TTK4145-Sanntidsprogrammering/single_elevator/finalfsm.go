@@ -58,7 +58,6 @@ func runTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChan
 func SingleElevator(
 	newOrderChannel <-chan Orders, //receiving new orders FROM ORDER MANAGER
 	completedOrderChannel chan<- elevio.ButtonEvent, //sending information about completed orders TO ORDER MANAGER
-	newLocalStateChannel chan<- Elevator, //sending information about the elevators current state TO ORDER MANAGER
 ) {
 	//Initialization of elevator
 	fmt.Println("setting motor down")
@@ -104,12 +103,10 @@ func SingleElevator(
 				DirectionBehaviourPair := ordersChooseDirection(state.Floor, state.Direction, OrderMatrix)
 				state.Behaviour = DirectionBehaviourPair.Behaviour
 				state.Direction = Direction(DirectionBehaviourPair.Direction)
-				newLocalStateChannel <- state
 				switch state.Behaviour {
 				case DoorOpen:
 					resetTimerChannel <- true
 					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
-					newLocalStateChannel <- state
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
@@ -133,7 +130,6 @@ func SingleElevator(
 				fmt.Println("Obstruction detected! Elevator unavailable")
 				state.Behaviour = DoorOpen
 				elevio.SetDoorOpenLamp(true)
-				newLocalStateChannel <- state
 				resetTimerChannel <- true
 				for obstruction {
 					select {
@@ -142,7 +138,6 @@ func SingleElevator(
 							state.Obstructed = false
 							state.Unavailable = false
 							fmt.Println("Obstruction cleared! Elevator available.")
-							newLocalStateChannel <- state
 							if state.Behaviour == DoorOpen {
 								resetTimerChannel <- true
 							}
@@ -164,7 +159,6 @@ func SingleElevator(
 					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
 					resetTimerChannel <- true
 					state.Behaviour = DoorOpen
-					newLocalStateChannel <- state
 					fmt.Println("New local state:", state)
 				}
 			default:
@@ -177,12 +171,10 @@ func SingleElevator(
 				DirectionBehaviourPair := ordersChooseDirection(state.Floor, state.Direction, OrderMatrix)
 				state.Behaviour = DirectionBehaviourPair.Behaviour
 				state.Direction = Direction(DirectionBehaviourPair.Direction)
-				newLocalStateChannel <- state
 				switch state.Behaviour {
 				case DoorOpen:
 					resetTimerChannel <- true
 					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
-					newLocalStateChannel <- state
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
@@ -199,5 +191,4 @@ initialization of elevator. go down to nearest floor.- hva har andre gjort?
 default/panic bør det implementeres over alt?
 doesnt know its in between two floors when stopping in between two floors
 printer new orders selv om vi ikke har noen orders?
-fjerne newlocalstate - brukes ikke noe sted
 */

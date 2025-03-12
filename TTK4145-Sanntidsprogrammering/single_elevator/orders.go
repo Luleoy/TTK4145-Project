@@ -61,7 +61,6 @@ func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 order manager for single elevator
 func OrderManager(newOrderChannel chan<- Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent, //sende-kanal
-	//newLocalStateChannel <-chan State, //sende-kanal - NÅR SKAL DENNE BRUKES?
 	buttonPressedChannel <-chan elevio.ButtonEvent) { //kun lesing av kanal
 	OrderMatrix := [configuration.NumFloors][configuration.NumButtons]bool{}
 	for {

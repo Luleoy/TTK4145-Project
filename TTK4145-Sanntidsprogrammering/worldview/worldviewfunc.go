@@ -5,6 +5,7 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+	"fmt"
 )
 
 func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
@@ -46,6 +47,7 @@ func InitializeWorldView(elevatorID string) WorldView {
 }
 
 func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
+	fmt.Println("we have entered updateworldviewwithbutton")
 	if isNewOrder {
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
@@ -176,6 +178,7 @@ func SetLights(localWorldView WorldView) {
 }
 
 func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
+	fmt.Println("vi har ankommet assignorder")
 	input := HRAInputFormatting(worldView, IDsAliveElevators)
 	outputAssigner := AssignerExecutable.Assigner(input)
 	return outputAssigner

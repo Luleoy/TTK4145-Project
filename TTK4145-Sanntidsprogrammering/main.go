@@ -28,7 +28,6 @@ func main() {
 	// Communication channels
 	newOrderChannel := make(chan single_elevator.Orders, configuration.Buffer)
 	completedOrderChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
-	newLocalStateChannel := make(chan single_elevator.Elevator, configuration.Buffer) //fjerne newlocalstate gjennom hele single_elevator
 	buttonPressedChannel := make(chan elevio.ButtonEvent)
 	WorldViewTXChannel := make(chan worldview.WorldView)
 	WorldViewRXChannel := make(chan worldview.WorldView)
@@ -48,7 +47,7 @@ func main() {
 
 	// go single_elevator.OrderManager(newOrderChannel, completedOrderChannel, buttonPressedChannel)
 	//go order_manager.Run(newOrderChannel, completedOrderChannel, buttonPressedChannel, network_tx, network_rx) - order manager erstattes
-	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel, newLocalStateChannel)
+	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel)
 	go communication.CommunicationHandler(elevatorID, peerUpdateChannel, IDPeersChannel)
 	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel)
 

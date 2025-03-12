@@ -7,6 +7,7 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+	"fmt"
 	"time"
 )
 
@@ -24,8 +25,8 @@ type WorldView struct {
 
 func WorldViewManager(
 	elevatorID string,
-	WorldViewTXChannel chan<- WorldView, //WorldView transmitter
-	WorldViewRXChannel <-chan WorldView, //WorldView receiver
+	WorldViewTXChannel chan<- WorldView,
+	WorldViewRXChannel <-chan WorldView,
 	buttonPressedChannel <-chan elevio.ButtonEvent,
 	newOrderChannel chan<- single_elevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
@@ -38,6 +39,8 @@ func WorldViewManager(
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer) * time.Millisecond)
 
 	IDsAliveElevators := []string{}
+
+	var PreviousOrderMatrix single_elevator.Orders
 
 	for {
 		select {
@@ -57,6 +60,7 @@ func WorldViewManager(
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
+			fmt.Println("Nå har vi oppdatert på TX kanalen. Har sendt LWV")
 
 		case complete := <-completedOrderChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, complete, false)
@@ -76,33 +80,21 @@ func WorldViewManager(
 			//tildeler ordre hvis de ikke allerede er distribuert
 
 			newLocalWorldView := MergeWorldViews(*localWorldView, updatedWorldView, IDsAliveElevators)
-			if !ValidateWorldView(newLocalWorldView) { //ikke laget validWorldView enda
+			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
 			WorldViewTXChannel <- newLocalWorldView
-			// send new worldview on network - må gjøre noe med mergeworldviews?
-
-			//UPDATE HALLSTATUS TO CONFIRMED
-			//ackliste bare skal være så lang som aktive heiser
-			//SJEKKE OM ACKLIST ER LIKE LANG SOM AKTIVE HEISER - samme IDer
-
 			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
-			OurHall := AssignHallOrders[localWorldView.ID] //value ut av map
+			OurHall := AssignHallOrders[localWorldView.ID]
 			OurCab := GetOurCAB(*localWorldView, localWorldView.ID)
 			OrderMatrix := MergeCABandHRAout(OurHall, OurCab)
-			newOrderChannel <- OrderMatrix
-
-			/*
-				hraInput := convertToHra(localWorldView)
-				assignedHalorders := runHRA(hraInput)
-				ourHal := assignedHalorders[ourId]
-				ourCab := getOurCab(localWorldView, ourId)
-				ordermatrix := covertToOrderMatrix(ourHal, ourCab)
-				updatedOrdersChan <- ordermatrix
-			*/
+			if OrderMatrix != PreviousOrderMatrix {
+				fmt.Println("Fått en ny order")
+				newOrderChannel <- OrderMatrix
+				PreviousOrderMatrix = OrderMatrix
+			}
 		}
 	}
 }
 
 //lys
-//packetloss - håndterer vel egt dette?
