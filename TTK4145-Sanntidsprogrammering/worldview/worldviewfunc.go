@@ -5,7 +5,6 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
-	"fmt"
 )
 
 func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
@@ -47,7 +46,7 @@ func InitializeWorldView(elevatorID string) WorldView {
 }
 
 func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
-	fmt.Println("we have entered updateworldviewwithbutton")
+	//fmt.Println("we have entered updateworldviewwithbutton")
 	if isNewOrder {
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
@@ -73,6 +72,7 @@ func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.B
 			ResetAckList(localWorldView)
 		}
 	}
+	//fmt.Println("LocalWorldView etter buttonPressed: ", localWorldView)
 	return *localWorldView
 }
 
@@ -92,6 +92,8 @@ func ResetAckList(localWorldView *WorldView) {
 }
 
 func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
+	//fmt.Println("localWV i covertfunc: ", worldView)
+	//worldviewen som kommer inni ConverttoBOOL har 1 på order og ikke 2 (confirmed), derfor kan den ikke komme seg videre
 	boolMatrix := make([][2]bool, configuration.NumFloors)
 	for floor := range boolMatrix {
 		for button := 0; button < 2; button++ {
@@ -102,10 +104,12 @@ func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 			}
 		}
 	}
+	//fmt.Println("boolMatrix: ", boolMatrix)
 	return boolMatrix
 }
 
 func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
+
 	hallRequests := ConvertHallOrderStatestoBool(worldView)
 	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
 	for _, elevatorID := range IDsAliveElevators {
@@ -178,8 +182,9 @@ func SetLights(localWorldView WorldView) {
 }
 
 func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
-	fmt.Println("vi har ankommet assignorder")
+	//fmt.Println("vi har ankommet assignorder")
 	input := HRAInputFormatting(worldView, IDsAliveElevators)
+	//fmt.Println("Input til HRA: ",input )
 	outputAssigner := AssignerExecutable.Assigner(input)
 	return outputAssigner
 }
@@ -188,19 +193,18 @@ func MergeOrdersHall(localOrder configuration.OrderMsg, updatedOrder configurati
 	if localOrder.AckList == nil {
 		localOrder.AckList = make(map[string]bool)
 	}
-	// for id := range updatedOrder.AckList {
-	// 	localOrder.AckList[id] = true
-	// }
-	localOrder.AckList[localWorldView.ID] = true
 
 	switch updatedOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
 	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
+		//har kun en heis, som legges til i acklisten, men klarer fortsatt ikke gå fra unconfirmed til confirmed
 		if localOrder.StateofOrder == configuration.None || localOrder.StateofOrder == configuration.Completed {
 			localOrder.StateofOrder = configuration.UnConfirmed
 			localOrder.AckList[updatedWorldView.ID] = true
 		}
 		if localOrder.StateofOrder == configuration.UnConfirmed { //handle barrier condition
+			localOrder.AckList[localWorldView.ID] = true
+			//MERGE ACKLISTER - legge til alle aktive heiser på nettet
 			allAcknowledged := true
 			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
 				if !localOrder.AckList[id] {
@@ -230,7 +234,6 @@ func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder config
 	// for id := range updatedOrder.AckList {
 	// 	localOrder.AckList[id] = true
 	// }
-	localCABOrder.AckList[localWorldView.ID] = true
 
 	switch updatedCABOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
@@ -240,6 +243,7 @@ func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder config
 			localCABOrder.AckList[updatedWorldView.ID] = true
 		}
 		if localCABOrder.StateofOrder == configuration.UnConfirmed { //handle barrier condition
+			localCABOrder.AckList[localWorldView.ID] = true
 			allAcknowledged := true
 			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
 				if !localCABOrder.AckList[id] {
@@ -262,6 +266,7 @@ func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder config
 	}
 }
 
+// feil: localcaborder er kun en etasje. Får out of range error. Kan det være fordi localorder og updatedorder kun er 1 istedenfor 4 i størrelse?
 func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	for id, state := range updatedWorldView.ElevatorStatusList { // Iterate over elevatorstatuslist in updatedWorldView and update the corresponding entries in the localWorldView
 		localWorldView.ElevatorStatusList[id] = state
@@ -275,13 +280,19 @@ func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAl
 		}
 	}
 	for id, elevState := range localWorldView.ElevatorStatusList { // Iterate over cab orders. Merge cab orders
+		TotalLocalCabOrders = []bool{}
+		TotalUpdatedCabOrders = []bool{}
 		for floor := range elevState.Cab {
 			localCabOrder := &localWorldView.ElevatorStatusList[id].Cab[floor]
+			TotalLocalCabOrders = append(TotalLocalCabOrders, localCabOrder)
 			updatedCabOrder := updatedWorldView.ElevatorStatusList[id].Cab[floor]
+			TotalUpdatedCabOrders = append(TotalUpdatedCabOrders, updatedCabOrder)
 			if localCabOrder.AckList == nil {
 				localCabOrder.AckList = make(map[string]bool)
 			}
-			MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			//MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			MergeOrdersCAB(*TotalLocalCabOrders, TotalUpdatedCabOrders, localWorldView, updatedWorldView, IDsAliveElevators)
+
 		}
 	}
 	return localWorldView

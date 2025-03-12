@@ -7,7 +7,9 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
-	"fmt"
+
+	//"fmt"
+
 	"time"
 )
 
@@ -45,7 +47,7 @@ func WorldViewManager(
 	for {
 		select {
 		case IDList := <-IDPeersChannel:
-			IDsAliveElevators = IDList
+			IDsAliveElevators = IDList //IDs alive is correct
 
 		case <-SendLocalWorldViewTimer.C:
 			localWorldView.ID = elevatorID
@@ -60,7 +62,8 @@ func WorldViewManager(
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
-			fmt.Println("Nå har vi oppdatert på TX kanalen. Har sendt LWV")
+			//denne er riktig
+			//fmt.Println("Nå har vi oppdatert på TX kanalen. Har sendt LWV")
 
 		case complete := <-completedOrderChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, complete, false)
@@ -85,11 +88,13 @@ func WorldViewManager(
 			}
 			WorldViewTXChannel <- newLocalWorldView
 			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
+			//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
+
 			OurHall := AssignHallOrders[localWorldView.ID]
 			OurCab := GetOurCAB(*localWorldView, localWorldView.ID)
 			OrderMatrix := MergeCABandHRAout(OurHall, OurCab)
 			if OrderMatrix != PreviousOrderMatrix {
-				fmt.Println("Fått en ny order")
+				//fmt.Println("Fått en ny order")
 				newOrderChannel <- OrderMatrix
 				PreviousOrderMatrix = OrderMatrix
 			}
