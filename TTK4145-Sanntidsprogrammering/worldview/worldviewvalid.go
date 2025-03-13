@@ -74,14 +74,21 @@ func ValidateElevatorState(id string, elevStateMsg ElevStateMsg) bool {
 
 func ValidateOrder(order configuration.OrderMsg) bool {
 	// Ensure valid state transitions
-	if order.StateofOrder == configuration.Confirmed && len(order.AckList) == 0 {
-		fmt.Println("Validation failed: Order marked as Confirmed but has no acknowledgments")
-		return false
-	}
-	if order.StateofOrder == configuration.Completed && len(order.AckList) == 0 {
-		fmt.Println("Validation failed: Order marked as Completed but has no history of acknowledgment")
-		return false
-	}
+	// if order.StateofOrder == configuration.Confirmed && len(order.AckList) == 0 {
+	// 	fmt.Println("Validation failed: Order marked as Confirmed but has no acknowledgments")
+	// 	return false
+	// }
+	// if order.StateofOrder == configuration.Completed && len(order.AckList) == 0 {
+	// 	fmt.Println("Validation failed: Order marked as Completed but has no history of acknowledgment")
+	// 	return false
+	// }
+
+	// if order.StateofOrder != configuration.None && order.StateofOrder != configuration.Confirmed ... {
+
+	// }
+	// if floor < 0 || floor >= numFloors {
+
+	// }
 
 	// Ensure AckList is initialized
 	if order.AckList == nil {

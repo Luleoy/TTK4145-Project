@@ -7,6 +7,8 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+	"fmt"
+	"reflect"
 
 	//"fmt"
 
@@ -38,7 +40,7 @@ func WorldViewManager(
 	initLocalWorldView := InitializeWorldView(elevatorID)
 	localWorldView := &initLocalWorldView
 
-	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer) * time.Millisecond)
+	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer))
 
 	IDsAliveElevators := []string{}
 
@@ -50,10 +52,11 @@ func WorldViewManager(
 			IDsAliveElevators = IDList //IDs alive is correct
 
 		case <-SendLocalWorldViewTimer.C:
+			fmt.Println("Sending ww")
 			localWorldView.ID = elevatorID
 			WorldViewTXChannel <- *localWorldView
 			SetLights(*localWorldView) //riktig oppdatering av lys?
-			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer) * time.Millisecond)
+			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer))
 
 		case buttonPressed := <-buttonPressedChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
@@ -76,17 +79,32 @@ func WorldViewManager(
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
+			fmt.Println("Got world view from: ", updatedWorldView.ID)
 			//sammenligner counter for å avgjøre om meldingen skal brukes
 			//oppdaterer localworldview hvis meldingen er nyere eller mer komplett
 			//håndtering lys
 			//oppdatere hallorderstatus basert på status for order
 			//tildeler ordre hvis de ikke allerede er distribuert
 
-			newLocalWorldView := MergeWorldViews(*localWorldView, updatedWorldView, IDsAliveElevators)
+			newLocalWorldView := MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
-			WorldViewTXChannel <- newLocalWorldView
+
+			//HER MÅ VI GJØRE NOE SÅNN AT DET BARE SENDES EN NY WV PÅ TX HVIS DET ER ENDRIGER, SÅNN AT DET IKKE SENDES HELE TIDEN
+
+			//if updatedWorldView.ID != elevatorID {
+			// if newLocalWorldView != *localWorldView {
+			// endre til å bare sende når newLocalWorldView != locaWorldView
+			//WorldViewTXChannel <- newLocalWorldView
+			//}
+
+			if !reflect.DeepEqual(newLocalWorldView, *localWorldView) {
+				fmt.Println("WorldViews are different")
+				WorldViewTXChannel <- newLocalWorldView
+
+			}
+
 			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
 			//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
 

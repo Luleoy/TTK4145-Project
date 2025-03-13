@@ -8,12 +8,12 @@ const (
 	NumFloors    = 4
 	NumElevators = 3
 	NumButtons   = 3
-	Buffer       = 1024
+	Buffer       = 100
 
 	DisconnectTime   = 1 * time.Second
 	DoorOpenDuration = 3 * time.Second
 	WatchdogTime     = 5 * time.Second
-	SendWVTimer      = 20 * time.Second
+	SendWVTimer      = 3000 * time.Millisecond
 
 	PeersPort     = 16969
 	BroadcastPort = 16970

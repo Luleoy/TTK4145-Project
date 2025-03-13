@@ -5,6 +5,7 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+	"fmt"
 )
 
 func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
@@ -189,7 +190,8 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 	return outputAssigner
 }
 
-func MergeOrdersHall(localOrder configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) {
+/*
+func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) {
 	if localOrder.AckList == nil {
 		localOrder.AckList = make(map[string]bool)
 	}
@@ -227,13 +229,11 @@ func MergeOrdersHall(localOrder configuration.OrderMsg, updatedOrder configurati
 	}
 }
 
-func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) {
+func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+
 	if localCABOrder.AckList == nil {
 		localCABOrder.AckList = make(map[string]bool)
 	}
-	// for id := range updatedOrder.AckList {
-	// 	localOrder.AckList[id] = true
-	// }
 
 	switch updatedCABOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
@@ -247,12 +247,15 @@ func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder config
 			allAcknowledged := true
 			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
 				if !localCABOrder.AckList[id] {
+					fmt.Println("Id not in acklist: ", id)
 					allAcknowledged = false
 					break
 				}
 			}
+			fmt.Println("All acks: ", allAcknowledged)
 			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
 				localCABOrder.StateofOrder = configuration.Confirmed
+				fmt.Println("Order confirmed")
 			}
 		}
 	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
@@ -265,35 +268,140 @@ func MergeOrdersCAB(localCABOrder configuration.OrderMsg, updatedCABOrder config
 		}
 	}
 }
+*/
 
-// feil: localcaborder er kun en etasje. Får out of range error. Kan det være fordi localorder og updatedorder kun er 1 istedenfor 4 i størrelse?
-func MergeWorldViews(localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
-	for id, state := range updatedWorldView.ElevatorStatusList { // Iterate over elevatorstatuslist in updatedWorldView and update the corresponding entries in the localWorldView
-		localWorldView.ElevatorStatusList[id] = state
+//BØR PRØVE Å FÅ MERGE HALL OG MERGECAB TIL EN FUNKSJON
+
+// endre sånn at funksjonen returnerer den oppdaterte localorder i stede for å endre direkte i WV
+// det enste jeg har gjort er å oprette variablen updatedLocalhall som i starten er en kopi av localOrder og deretter er det denne variablen som endres
+// så returneres updatedLocalhall
+func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+	updatedLocalHall := *localOrder //ENDRE NAVN, ER FORVIRRENDE
+
+	if updatedLocalHall.AckList == nil {
+		updatedLocalHall.AckList = make(map[string]bool)
 	}
+
+	switch updatedOrder.StateofOrder {
+	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
+	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
+		//har kun en heis, som legges til i acklisten, men klarer fortsatt ikke gå fra unconfirmed til confirmed
+		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.Completed {
+			updatedLocalHall.StateofOrder = configuration.UnConfirmed
+			updatedLocalHall.AckList[updatedWorldView.ID] = true
+		}
+		if updatedLocalHall.StateofOrder == configuration.UnConfirmed { //handle barrier condition
+			updatedLocalHall.AckList[localWorldView.ID] = true
+			//MERGE ACKLISTER - legge til alle aktive heiser på nettet
+			allAcknowledged := true
+			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
+				if !updatedLocalHall.AckList[id] {
+					allAcknowledged = false
+					break
+				}
+			}
+			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
+				updatedLocalHall.StateofOrder = configuration.Confirmed
+			}
+		}
+	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
+		// fmt.Println("Helloooooooo, my order state: ", updatedLocalHall.StateofOrder)
+		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.UnConfirmed {
+			updatedLocalHall.StateofOrder = configuration.Confirmed
+		}
+	case configuration.Completed:
+		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.Confirmed {
+			updatedLocalHall.StateofOrder = configuration.Completed
+		}
+	}
+	return updatedLocalHall
+}
+
+// endre sånn at funksjonen returnerer den oppdaterte localCABorder i stede for å endre direkte i WV
+// det enste jeg har gjort er å oprette variablen updatedLocalCab som i starten er en kopi av localCABOrder og deretter er det denne variablen som endres
+// så returneres updatedLocalCab
+func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+	updatedLocalCab := *localCABOrder
+
+	if updatedLocalCab.AckList == nil {
+		updatedLocalCab.AckList = make(map[string]bool)
+	}
+	// for id := range updatedOrder.AckList {
+	// 	localOrder.AckList[id] = true
+	// }
+
+	switch updatedCABOrder.StateofOrder {
+	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
+	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
+		if updatedLocalCab.StateofOrder == configuration.None || updatedLocalCab.StateofOrder == configuration.Completed {
+			updatedLocalCab.StateofOrder = configuration.UnConfirmed
+			updatedLocalCab.AckList[updatedWorldView.ID] = true
+		}
+		if updatedLocalCab.StateofOrder == configuration.UnConfirmed { //handle barrier condition
+			updatedLocalCab.AckList[localWorldView.ID] = true
+			allAcknowledged := true
+			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
+				if !updatedLocalCab.AckList[id] {
+					fmt.Println("Id not in acklist: ", id)
+					allAcknowledged = false
+					break
+				}
+			}
+			fmt.Println("All acks: ", allAcknowledged)
+			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
+				updatedLocalCab.StateofOrder = configuration.Confirmed
+				fmt.Println("Order confirmed")
+			}
+		}
+	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
+		if updatedLocalCab.StateofOrder == configuration.None || updatedLocalCab.StateofOrder == configuration.UnConfirmed {
+			updatedLocalCab.StateofOrder = configuration.Confirmed
+		}
+	case configuration.Completed:
+		if updatedLocalCab.StateofOrder == configuration.None || localCABOrder.StateofOrder == configuration.Confirmed {
+			updatedLocalCab.StateofOrder = configuration.Completed
+		}
+	}
+	return updatedLocalCab
+}
+
+func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
+	MergedWorldView := *localWorldView
+
+	fmt.Println("Hall: ", localWorldView.HallOrderStatus)
 	for floor := range localWorldView.HallOrderStatus { // Iterate over hall orders. Merge hallOrderStatus
 		for button := range localWorldView.HallOrderStatus[floor] {
 			// Get the local and updated orders for floor and button
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
 			updatedOrder := updatedWorldView.HallOrderStatus[floor][button]
-			MergeOrdersHall(*localOrder, updatedOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			HallOrderMerged := MergeOrdersHall(localOrder, updatedOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
 		}
 	}
-	for id, elevState := range localWorldView.ElevatorStatusList { // Iterate over cab orders. Merge cab orders
-		TotalLocalCabOrders = []bool{}
-		TotalUpdatedCabOrders = []bool{}
-		for floor := range elevState.Cab {
-			localCabOrder := &localWorldView.ElevatorStatusList[id].Cab[floor]
-			TotalLocalCabOrders = append(TotalLocalCabOrders, localCabOrder)
-			updatedCabOrder := updatedWorldView.ElevatorStatusList[id].Cab[floor]
-			TotalUpdatedCabOrders = append(TotalUpdatedCabOrders, updatedCabOrder)
-			if localCabOrder.AckList == nil {
-				localCabOrder.AckList = make(map[string]bool)
-			}
-			//MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
-			MergeOrdersCAB(*TotalLocalCabOrders, TotalUpdatedCabOrders, localWorldView, updatedWorldView, IDsAliveElevators)
 
+	for id, elevState := range updatedWorldView.ElevatorStatusList {
+
+		_, localElevStateExists := localWorldView.ElevatorStatusList[id] //Sjekker om id finnes som en nøkkel i localWorldView.ElevatorStatusList
+
+		if !localElevStateExists { //Sjekker om id ikke finnes i localWorldView.ElevatorStatusList, og hvis det ikke finnes, legger det til elevState i mappen.
+			localWorldView.ElevatorStatusList[id] = elevState
+		} else {
+			fmt.Println("Id: ", id, " Cab: ", localWorldView.ElevatorStatusList[id].Cab)
+			fmt.Println("IdsAlive: ", IDsAliveElevators)
+
+			for floor := range elevState.Cab {
+				localCabOrder := &localWorldView.ElevatorStatusList[id].Cab[floor]
+				updatedCabOrder := updatedWorldView.ElevatorStatusList[id].Cab[floor]
+
+				if localCabOrder.AckList == nil {
+					localCabOrder.AckList = make(map[string]bool)
+				}
+
+				//MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+				CabOrderMerged := MergeOrdersCAB(localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+				MergedWorldView.ElevatorStatusList[id].Cab[floor] = CabOrderMerged
+			}
 		}
 	}
-	return localWorldView
+	return MergedWorldView
 }
