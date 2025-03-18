@@ -44,8 +44,10 @@ func ordersBelow(orders Orders, floor int) bool {
 	return false
 }
 
-func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrderChannel chan<- elevio.ButtonEvent) {
-	completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_Cab}
+func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrderChannel chan<- elevio.ButtonEvent, OrderMatrix Orders) {
+	if OrderMatrix[floor][2] {
+		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_Cab}
+	}
 	switch direction {
 	case Direction(elevio.MD_Up):
 		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}

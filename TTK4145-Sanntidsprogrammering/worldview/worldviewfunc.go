@@ -64,6 +64,7 @@ func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.B
 			localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].AckList[localWorldView.ID] = true
 		}
 	} else {
+		fmt.Println("Done with order: ", buttonPressed)
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
 			localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder = configuration.Completed
@@ -190,86 +191,6 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 	return outputAssigner
 }
 
-/*
-func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) {
-	if localOrder.AckList == nil {
-		localOrder.AckList = make(map[string]bool)
-	}
-
-	switch updatedOrder.StateofOrder {
-	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
-	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		//har kun en heis, som legges til i acklisten, men klarer fortsatt ikke gå fra unconfirmed til confirmed
-		if localOrder.StateofOrder == configuration.None || localOrder.StateofOrder == configuration.Completed {
-			localOrder.StateofOrder = configuration.UnConfirmed
-			localOrder.AckList[updatedWorldView.ID] = true
-		}
-		if localOrder.StateofOrder == configuration.UnConfirmed { //handle barrier condition
-			localOrder.AckList[localWorldView.ID] = true
-			//MERGE ACKLISTER - legge til alle aktive heiser på nettet
-			allAcknowledged := true
-			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
-				if !localOrder.AckList[id] {
-					allAcknowledged = false
-					break
-				}
-			}
-			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
-				localOrder.StateofOrder = configuration.Confirmed
-			}
-		}
-	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
-		if localOrder.StateofOrder == configuration.None {
-			localOrder.StateofOrder = configuration.Confirmed
-		}
-	case configuration.Completed:
-		if localOrder.StateofOrder == configuration.None || localOrder.StateofOrder == configuration.Confirmed {
-			localOrder.StateofOrder = configuration.Completed
-		}
-	}
-}
-
-func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
-
-	if localCABOrder.AckList == nil {
-		localCABOrder.AckList = make(map[string]bool)
-	}
-
-	switch updatedCABOrder.StateofOrder {
-	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
-	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		if localCABOrder.StateofOrder == configuration.None || localCABOrder.StateofOrder == configuration.Completed {
-			localCABOrder.StateofOrder = configuration.UnConfirmed
-			localCABOrder.AckList[updatedWorldView.ID] = true
-		}
-		if localCABOrder.StateofOrder == configuration.UnConfirmed { //handle barrier condition
-			localCABOrder.AckList[localWorldView.ID] = true
-			allAcknowledged := true
-			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
-				if !localCABOrder.AckList[id] {
-					fmt.Println("Id not in acklist: ", id)
-					allAcknowledged = false
-					break
-				}
-			}
-			fmt.Println("All acks: ", allAcknowledged)
-			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
-				localCABOrder.StateofOrder = configuration.Confirmed
-				fmt.Println("Order confirmed")
-			}
-		}
-	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
-		if localCABOrder.StateofOrder == configuration.None {
-			localCABOrder.StateofOrder = configuration.Confirmed
-		}
-	case configuration.Completed:
-		if localCABOrder.StateofOrder == configuration.None || localCABOrder.StateofOrder == configuration.Confirmed {
-			localCABOrder.StateofOrder = configuration.Completed
-		}
-	}
-}
-*/
-
 //BØR PRØVE Å FÅ MERGE HALL OG MERGECAB TIL EN FUNKSJON
 
 // endre sånn at funksjonen returnerer den oppdaterte localorder i stede for å endre direkte i WV
@@ -285,10 +206,8 @@ func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configurat
 	switch updatedOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
 	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		//har kun en heis, som legges til i acklisten, men klarer fortsatt ikke gå fra unconfirmed til confirmed
-		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.Completed {
+		if updatedLocalHall.StateofOrder == configuration.None { //|| updatedLocalHall.StateofOrder == configuration.Completed
 			updatedLocalHall.StateofOrder = configuration.UnConfirmed
-			updatedLocalHall.AckList[updatedWorldView.ID] = true
 		}
 		if updatedLocalHall.StateofOrder == configuration.UnConfirmed { //handle barrier condition
 			updatedLocalHall.AckList[localWorldView.ID] = true
@@ -313,6 +232,7 @@ func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configurat
 		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.Confirmed {
 			updatedLocalHall.StateofOrder = configuration.Completed
 		}
+		//NONE barrier
 	}
 	return updatedLocalHall
 }
@@ -330,12 +250,48 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 	// 	localOrder.AckList[id] = true
 	// }
 
+	if order_new > current_order {
+		current_order = order_new;
+		current_order.AckList[ourId] = true
+	}	
+
+	// should we convert to new order or keep our order
+	// with our new local order, does it satisfy the requirements for the barriers
+
+	//her håndterer vi states 
+	switch localCABOrder.StateofOrder {
+	case configuration.None:
+		if updatedCABOrder.StateofOrder != configuration.Completed {
+			updatedLocalCab.StateofOrder = updatedCABOrder.StateofOrder
+			updatedLocalCab.AckList = updatedCABOrder.AckList
+			updatedLocalCab.AckList[localWorldView.ID] = true
+		}
+	case configuration.UnConfirmed:
+		if updatedCABOrder.StateofOrder == configuration.Confirmed || updatedCABOrder.StateofOrder == configuration.Completed {
+			// set our order to recieved order... add ourselves to acklist
+		} else if updatedCABOrder.StateofOrder == configuration.UnConfirmed {
+			// merge both acklists
+		}
+	}
+
+	//her håndterier vi barrier
+	if updatedLocalCab.StateofOrder == configuration.UnConfirmed {
+		if fullacklist(...) {
+			updatedLocalCab.StateofOrder = configuration.Confirmed;
+			resetacklit();
+		}
+	} else if updatedLocalCab.StateofOrder == configuration.Completed {
+		/// same
+	}
+
+
+	//gammel kode, skal ikke være her 
 	switch updatedCABOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
 	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		if updatedLocalCab.StateofOrder == configuration.None || updatedLocalCab.StateofOrder == configuration.Completed {
+		if updatedLocalCab.StateofOrder == configuration.None { //|| updatedLocalCab.StateofOrder == configuration.Completed
 			updatedLocalCab.StateofOrder = configuration.UnConfirmed
-			updatedLocalCab.AckList[updatedWorldView.ID] = true
+			//updatedLocalCab.AckList[updatedWorldView.ID] = true
 		}
 		if updatedLocalCab.StateofOrder == configuration.UnConfirmed { //handle barrier condition
 			updatedLocalCab.AckList[localWorldView.ID] = true

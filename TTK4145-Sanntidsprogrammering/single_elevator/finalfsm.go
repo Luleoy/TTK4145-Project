@@ -12,7 +12,7 @@ type Elevator struct { //the elevators current state
 	Direction   Direction //directions: Up, Down
 	Obstructed  bool
 	Behaviour   Behaviour //behaviours: Idle, Moving and DoorOpen
-	Unavailable bool      //MÅ OPPDATERE
+	Unavailable bool      //MÅ OPPDATERE - legg til i STOP
 }
 
 type Behaviour int
@@ -106,7 +106,7 @@ func SingleElevator(
 				switch state.Behaviour {
 				case DoorOpen:
 					resetTimerChannel <- true
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
+					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
@@ -156,7 +156,7 @@ func SingleElevator(
 			case Moving:
 				if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {
 					elevio.SetMotorDirection(elevio.MD_Stop)
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
+					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 					resetTimerChannel <- true
 					state.Behaviour = DoorOpen
 					fmt.Println("New local state:", state)
@@ -174,7 +174,7 @@ func SingleElevator(
 				switch state.Behaviour {
 				case DoorOpen:
 					resetTimerChannel <- true
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel)
+					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)

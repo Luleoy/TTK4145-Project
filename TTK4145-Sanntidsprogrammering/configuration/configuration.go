@@ -6,14 +6,13 @@ import (
 
 const (
 	NumFloors    = 4
-	NumElevators = 3
 	NumButtons   = 3
 	Buffer       = 100
 
 	DisconnectTime   = 1 * time.Second
 	DoorOpenDuration = 3 * time.Second
 	WatchdogTime     = 5 * time.Second
-	SendWVTimer      = 3000 * time.Millisecond
+	SendWVTimer      = 3000 * time.Millisecond //for at lyset skal være raskere, gjør denne mindre, er bare stor for debugging
 
 	PeersPort     = 16969
 	BroadcastPort = 16970

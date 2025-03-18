@@ -24,7 +24,6 @@ type WorldView struct {
 	ID                 string
 	ElevatorStatusList map[string]ElevStateMsg
 	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMsg
-	//Burde vi broadcaste om heisen er unavailable??
 }
 
 func WorldViewManager(
@@ -65,6 +64,7 @@ func WorldViewManager(
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView)
 			//denne er riktig
 			//fmt.Println("Nå har vi oppdatert på TX kanalen. Har sendt LWV")
 
@@ -76,35 +76,22 @@ func WorldViewManager(
 
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView)
 
 		//MESSAGE SYSTEM - connection with network
 		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
 			fmt.Println("Got world view from: ", updatedWorldView.ID)
-			//sammenligner counter for å avgjøre om meldingen skal brukes
-			//oppdaterer localworldview hvis meldingen er nyere eller mer komplett
-			//håndtering lys
-			//oppdatere hallorderstatus basert på status for order
-			//tildeler ordre hvis de ikke allerede er distribuert
 
 			newLocalWorldView := MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
-
-			//HER MÅ VI GJØRE NOE SÅNN AT DET BARE SENDES EN NY WV PÅ TX HVIS DET ER ENDRIGER, SÅNN AT DET IKKE SENDES HELE TIDEN
-
-			//if updatedWorldView.ID != elevatorID {
-			// if newLocalWorldView != *localWorldView {
-			// endre til å bare sende når newLocalWorldView != locaWorldView
-			//WorldViewTXChannel <- newLocalWorldView
-			//}
-
 			if !reflect.DeepEqual(newLocalWorldView, *localWorldView) {
 				fmt.Println("WorldViews are different")
 				WorldViewTXChannel <- newLocalWorldView
+				SetLights(*localWorldView)
 
 			}
-
 			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
 			//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
 
@@ -119,5 +106,3 @@ func WorldViewManager(
 		}
 	}
 }
-
-//lys

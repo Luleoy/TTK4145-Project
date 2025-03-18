@@ -45,8 +45,6 @@ func main() {
 	go elevio.PollButtons(buttonPressedChannel)
 	//har started polling på obstruction, floorsensor, stopbutton i FSM
 
-	// go single_elevator.OrderManager(newOrderChannel, completedOrderChannel, buttonPressedChannel)
-	//go order_manager.Run(newOrderChannel, completedOrderChannel, buttonPressedChannel, network_tx, network_rx) - order manager erstattes
 	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel)
 	go communication.CommunicationHandler(elevatorID, peerUpdateChannel, IDPeersChannel)
 	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel)
