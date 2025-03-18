@@ -28,9 +28,9 @@ func main() {
 	// Communication channels
 	newOrderChannel := make(chan single_elevator.Orders, configuration.Buffer)
 	completedOrderChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
-	buttonPressedChannel := make(chan elevio.ButtonEvent)
-	WorldViewTXChannel := make(chan worldview.WorldView)
-	WorldViewRXChannel := make(chan worldview.WorldView)
+	buttonPressedChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
+	WorldViewTXChannel := make(chan worldview.WorldView, configuration.Buffer)
+	WorldViewRXChannel := make(chan worldview.WorldView, configuration.Buffer)
 	IDPeersChannel := make(chan []string)
 	peerUpdateChannel := make(chan peers.PeerUpdate)
 
