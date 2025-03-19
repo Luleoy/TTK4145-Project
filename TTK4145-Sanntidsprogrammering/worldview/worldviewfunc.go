@@ -196,6 +196,7 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 // endre sånn at funksjonen returnerer den oppdaterte localorder i stede for å endre direkte i WV
 // det enste jeg har gjort er å oprette variablen updatedLocalhall som i starten er en kopi av localOrder og deretter er det denne variablen som endres
 // så returneres updatedLocalhall
+/*
 func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
 	updatedLocalHall := *localOrder //ENDRE NAVN, ER FORVIRRENDE
 
@@ -253,12 +254,12 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 	if order_new > current_order {
 		current_order = order_new;
 		current_order.AckList[ourId] = true
-	}	
+	}
 
 	// should we convert to new order or keep our order
 	// with our new local order, does it satisfy the requirements for the barriers
 
-	//her håndterer vi states 
+	//her håndterer vi states
 	switch localCABOrder.StateofOrder {
 	case configuration.None:
 		if updatedCABOrder.StateofOrder != configuration.Completed {
@@ -285,7 +286,7 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 	}
 
 
-	//gammel kode, skal ikke være her 
+	//gammel kode, skal ikke være her
 	switch updatedCABOrder.StateofOrder {
 	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
 	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
@@ -320,6 +321,94 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 	}
 	return updatedLocalCab
 }
+*/
+func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+	updatedLocalOrder := *localOrder
+	if updatedLocalOrder.AckList == nil {
+		updatedLocalOrder.AckList = make(map[string]bool)
+	}
+	//cyclic counter - should we convert to new order or keep our order
+	/*
+		if order_new > current_order {
+		current_order = order_new;
+		current_order.AckList[ourId] = true
+		}
+	*/
+	switch updatedLocalOrder.StateofOrder {
+	case configuration.None:
+		if receivedOrder.StateofOrder != configuration.Completed {
+			updatedLocalOrder.StateofOrder = receivedOrder.StateofOrder
+			updatedLocalOrder.AckList = receivedOrder.AckList
+			updatedLocalOrder.AckList[localWorldView.ID] = true
+		}
+	case configuration.UnConfirmed:
+		if receivedOrder.StateofOrder == configuration.Confirmed { //|| receivedOrder.StateofOrder == configuration.Completed
+			//set our order to received order
+			//add ourselves to acklist
+			updatedLocalOrder.StateofOrder = receivedOrder.StateofOrder
+			updatedLocalOrder.AckList[localWorldView.ID] = true
+		} else if receivedOrder.StateofOrder == configuration.UnConfirmed {
+			// Merge AckLists
+			for id, acknowledged := range receivedOrder.AckList {
+				// Hvis noden har bekreftet bestillingen, legg den til i den oppdaterte listen
+				if acknowledged {
+					updatedLocalOrder.AckList[id] = true
+				}
+			}
+			// Sørg for at vi selv er i AckList
+			updatedLocalOrder.AckList[localWorldView.ID] = true
+		}
+	case configuration.Confirmed: //stemmer det at vi ikke trenger å oppdatere acklisten her?
+		if receivedOrder.StateofOrder == configuration.Completed {
+			updatedLocalOrder.StateofOrder = receivedOrder.StateofOrder
+		}
+	case configuration.Completed:
+		if receivedOrder.StateofOrder == configuration.Completed {
+			// Merge AckLists
+			for id, acknowledged := range receivedOrder.AckList {
+				// Hvis noden har bekreftet bestillingen, legg den til i den oppdaterte listen
+				if acknowledged {
+					updatedLocalOrder.AckList[id] = true
+				}
+			}
+			// Sørg for at vi selv er i AckList
+			updatedLocalOrder.AckList[localWorldView.ID] = true
+		}
+	}
+	//håndtere barrier etter switch - with our new local order, does it satisfy the requirements for the barriers
+	if updatedLocalOrder.StateofOrder == configuration.UnConfirmed {
+		allAcknowledged := true
+		for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
+			if !updatedLocalOrder.AckList[id] {
+				fmt.Println("Id not in acklist: ", id)
+				allAcknowledged = false
+				break
+			}
+		}
+		fmt.Println("All acks: ", allAcknowledged)
+		if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
+			updatedLocalOrder.StateofOrder = configuration.Confirmed
+			fmt.Println("Order CONFIRMED")
+			ResetAckList(localWorldView)
+		}
+	} else if updatedLocalOrder.StateofOrder == configuration.Completed {
+		allAcknowledged := true
+		for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
+			if !updatedLocalOrder.AckList[id] {
+				fmt.Println("Id not in acklist: ", id)
+				allAcknowledged = false
+				break
+			}
+		}
+		fmt.Println("All acks: ", allAcknowledged)
+		if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
+			updatedLocalOrder.StateofOrder = configuration.None
+			fmt.Println("Order set to NONE")
+			ResetAckList(localWorldView)
+		}
+	}
+	return updatedLocalOrder
+}
 
 func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	MergedWorldView := *localWorldView
@@ -330,7 +419,7 @@ func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsA
 			// Get the local and updated orders for floor and button
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
 			updatedOrder := updatedWorldView.HallOrderStatus[floor][button]
-			HallOrderMerged := MergeOrdersHall(localOrder, updatedOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			HallOrderMerged := MergeOrders(localOrder, updatedOrder, localWorldView, updatedWorldView, IDsAliveElevators)
 			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
 		}
 	}
@@ -354,7 +443,7 @@ func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsA
 				}
 
 				//MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
-				CabOrderMerged := MergeOrdersCAB(localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+				CabOrderMerged := MergeOrders(localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
 				MergedWorldView.ElevatorStatusList[id].Cab[floor] = CabOrderMerged
 			}
 		}
