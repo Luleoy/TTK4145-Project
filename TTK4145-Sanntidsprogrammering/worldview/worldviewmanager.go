@@ -7,10 +7,7 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
-	"fmt"
 	"reflect"
-
-	//"fmt"
 
 	"time"
 )
@@ -34,6 +31,7 @@ func WorldViewManager(
 	newOrderChannel chan<- single_elevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
 	IDPeersChannel <-chan []string,
+	elevatorStateChannel <-chan single_elevator.Elevator,
 ) {
 
 	initLocalWorldView := InitializeWorldView(elevatorID)
@@ -51,11 +49,18 @@ func WorldViewManager(
 			IDsAliveElevators = IDList //IDs alive is correct
 
 		case <-SendLocalWorldViewTimer.C:
-			fmt.Println("Sending ww")
+			//fmt.Println("Sending ww")
 			localWorldView.ID = elevatorID
 			WorldViewTXChannel <- *localWorldView
 			SetLights(*localWorldView) //riktig oppdatering av lys?
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer))
+
+		case elevatorState := <-elevatorStateChannel:
+			elevStateMsg := localWorldView.ElevatorStatusList[elevatorID] // Hent en kopi av ElevStateMsg fra mappen
+			elevStateMsg.Elev = elevatorState                             // Oppdater Elev-feltet i kopien
+			localWorldView.ElevatorStatusList[elevatorID] = elevStateMsg  // Sett den oppdaterte structen tilbake i mappen
+			WorldViewTXChannel <- *localWorldView                         // Send den oppdaterte WorldView til WorldViewTXChannel
+			SetLights(*localWorldView)                                    // Oppdater lysene
 
 		case buttonPressed := <-buttonPressedChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
@@ -79,15 +84,14 @@ func WorldViewManager(
 			SetLights(*localWorldView)
 
 		//MESSAGE SYSTEM - connection with network
-		case updatedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
-			fmt.Println("Got world view from: ", updatedWorldView.ID)
-
-			newLocalWorldView := MergeWorldViews(localWorldView, updatedWorldView, IDsAliveElevators)
+		case receivedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
+			//fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
+			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
 			if !reflect.DeepEqual(newLocalWorldView, *localWorldView) {
-				fmt.Println("WorldViews are different")
+				//fmt.Println("WorldViews are different")
 				WorldViewTXChannel <- newLocalWorldView
 				SetLights(*localWorldView)
 

@@ -33,6 +33,7 @@ func main() {
 	WorldViewRXChannel := make(chan worldview.WorldView, configuration.Buffer)
 	IDPeersChannel := make(chan []string)
 	peerUpdateChannel := make(chan peers.PeerUpdate)
+	elevatorStateChannel := make(chan single_elevator.Elevator, configuration.Buffer)
 
 	go bcast.Transmitter(configuration.BroadcastPort, WorldViewTXChannel)
 	go bcast.Receiver(configuration.BroadcastPort, WorldViewRXChannel)
@@ -45,9 +46,9 @@ func main() {
 	go elevio.PollButtons(buttonPressedChannel)
 	//har started polling på obstruction, floorsensor, stopbutton i FSM
 
-	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel)
+	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel, elevatorStateChannel)
 	go communication.CommunicationHandler(elevatorID, peerUpdateChannel, IDPeersChannel)
-	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel)
+	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel)
 
 	select {}
 }

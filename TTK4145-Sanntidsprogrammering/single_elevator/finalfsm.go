@@ -58,6 +58,7 @@ func runTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChan
 func SingleElevator(
 	newOrderChannel <-chan Orders, //receiving new orders FROM ORDER MANAGER
 	completedOrderChannel chan<- elevio.ButtonEvent, //sending information about completed orders TO ORDER MANAGER
+	elevatorStateChannel chan<- Elevator,
 ) {
 	//Initialization of elevator
 	fmt.Println("setting motor down")
@@ -152,6 +153,7 @@ func SingleElevator(
 		case state.Floor = <-floorEnteredChannel:
 			fmt.Println("New floor: ", state.Floor)
 			elevio.SetFloorIndicator(state.Floor)
+			elevatorStateChannel <- state
 			switch state.Behaviour {
 			case Moving:
 				if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {
