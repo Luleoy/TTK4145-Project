@@ -322,6 +322,9 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 	return updatedLocalCab
 }
 */
+
+//vi klarer ikke merge acklistene ordentlig
+
 func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
 	updatedLocalOrder := *localOrder
 	if updatedLocalOrder.AckList == nil {
@@ -410,7 +413,7 @@ func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration
 	return updatedLocalOrder
 }
 
-func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) WorldView {
+func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	MergedWorldView := *localWorldView
 
 	fmt.Println("Hall: ", localWorldView.HallOrderStatus)
@@ -418,13 +421,13 @@ func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsA
 		for button := range localWorldView.HallOrderStatus[floor] {
 			// Get the local and updated orders for floor and button
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
-			updatedOrder := updatedWorldView.HallOrderStatus[floor][button]
-			HallOrderMerged := MergeOrders(localOrder, updatedOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+			receivedOrder := receivedWorldView.HallOrderStatus[floor][button]
+			HallOrderMerged := MergeOrders(localOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
 		}
 	}
 
-	for id, elevState := range updatedWorldView.ElevatorStatusList {
+	for id, elevState := range receivedWorldView.ElevatorStatusList {
 
 		_, localElevStateExists := localWorldView.ElevatorStatusList[id] //Sjekker om id finnes som en nøkkel i localWorldView.ElevatorStatusList
 
@@ -436,14 +439,14 @@ func MergeWorldViews(localWorldView *WorldView, updatedWorldView WorldView, IDsA
 
 			for floor := range elevState.Cab {
 				localCabOrder := &localWorldView.ElevatorStatusList[id].Cab[floor]
-				updatedCabOrder := updatedWorldView.ElevatorStatusList[id].Cab[floor]
+				receivedOrder := receivedWorldView.ElevatorStatusList[id].Cab[floor]
 
 				if localCabOrder.AckList == nil {
 					localCabOrder.AckList = make(map[string]bool)
 				}
 
 				//MergeOrdersCAB(*localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
-				CabOrderMerged := MergeOrders(localCabOrder, updatedCabOrder, localWorldView, updatedWorldView, IDsAliveElevators)
+				CabOrderMerged := MergeOrders(localCabOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 				MergedWorldView.ElevatorStatusList[id].Cab[floor] = CabOrderMerged
 			}
 		}
