@@ -26,6 +26,32 @@ func orderHere(orders Orders, floor int) bool {
 	return false
 }
 
+func shouldStopAtFloor(orders Orders, floor int, direction Direction) bool {
+	if orders[floor][elevio.BT_Cab] || floor == 0 || floor == configuration.NumFloors-1 {
+		return true
+	}
+	switch direction {
+	case Up:
+		if orders[floor][elevio.BT_HallUp] {
+			return true
+		}
+		if orders[floor][elevio.BT_HallDown] && !ordersAbove(orders, floor) {
+			return true
+		}
+	case Down:
+		if orders[floor][elevio.BT_HallDown] {
+			return true
+		}
+		if orders[floor][elevio.BT_HallUp] && !ordersBelow(orders, floor) {
+			return true
+		}
+	case Stop:
+		panic("direction should not be stop")
+	}
+	return false
+
+}
+
 func ordersAbove(orders Orders, floor int) bool {
 	for f := floor + 1; f < configuration.NumFloors; f++ {
 		if orderHere(orders, f) {
@@ -50,12 +76,17 @@ func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 	}
 	switch direction {
 	case Direction(elevio.MD_Up):
-		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+		if OrderMatrix[floor][elevio.BT_HallUp] {
+			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+		} else if OrderMatrix[floor][elevio.BT_HallDown] && !ordersAbove(OrderMatrix, floor) {
+			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+		}
 	case Direction(elevio.MD_Down):
-		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
-	case Direction(elevio.MD_Stop):
-		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
-		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+		if OrderMatrix[floor][elevio.BT_HallDown] {
+			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+		} else if OrderMatrix[floor][elevio.BT_HallUp] && !ordersBelow(OrderMatrix, floor) {
+			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+		}
 	}
 }
 

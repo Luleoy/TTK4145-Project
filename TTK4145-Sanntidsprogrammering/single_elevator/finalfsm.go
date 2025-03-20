@@ -156,7 +156,8 @@ func SingleElevator(
 			elevatorStateChannel <- state
 			switch state.Behaviour {
 			case Moving:
-				if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {
+				// if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {
+				if shouldStopAtFloor(OrderMatrix, state.Floor, state.Direction) {
 					elevio.SetMotorDirection(elevio.MD_Stop)
 					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 					resetTimerChannel <- true
@@ -184,6 +185,7 @@ func SingleElevator(
 			}
 		}
 		elevio.SetDoorOpenLamp(state.Behaviour == DoorOpen)
+		elevatorStateChannel <- state
 	}
 }
 

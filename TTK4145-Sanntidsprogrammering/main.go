@@ -15,6 +15,24 @@ import (
 func main() {
 	fmt.Println("Elevator System Starting...")
 
+	// map1 := make(map[string]bool)
+	// map1["A"] = true
+	// fmt.Println("Before copy: ", map1)
+
+	// map2 := map1
+	// map2["A"] = false
+
+	// fmt.Println("after: map1: ", map1, " map2: ", map2)
+
+	// i := 1
+
+	// j := &i
+	// *j = 2
+
+	// fmt.Println("i: ", i, " j: ", *j)
+
+	// return
+
 	idflag := flag.String("id", "default_id", "Id of this peer")
 	elevioPortFlag := flag.String("ePort", "15657", "Port for elevio")
 	flag.Parse()
