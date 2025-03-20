@@ -111,32 +111,35 @@ func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 }
 
 func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
-
-	hallRequests := ConvertHallOrderStatestoBool(worldView)
-	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
-	for _, elevatorID := range IDsAliveElevators {
-		elevState, exists := worldView.ElevatorStatusList[elevatorID]
+	hallRequests := ConvertHallOrderStatestoBool(worldView)            // Konverter hallbestillinger til en boolsk matrise
+	elevatorStates := make(map[string]AssignerExecutable.HRAElevState) // Opprett en map for å lagre tilstanden til hver heis
+	for _, elevatorID := range IDsAliveElevators {                     // Gå gjennom alle aktive heiser
+		elevStateMsg, exists := worldView.ElevatorStatusList[elevatorID] // Hent tilstanden til heisen fra ElevatorStatusList
 		if !exists {
-			continue
+			continue // Hvis heisen ikke finnes i listen, hopp over
 		}
-		if !elevState.Elev.Unavailable {
-			cabRequests := make([]bool, configuration.NumFloors)
-			for floor, cabOrder := range elevState.Cab {
-				cabRequests[floor] = cabOrder.StateofOrder == configuration.Confirmed
+		elevState := elevStateMsg.Elev // Hent tilstanden til heisen (Elevator-structen)
+		if !elevState.Unavailable {    // Hvis heisen er tilgjengelig (ikke "Unavailable"), oppdater tilstanden
+			cabRequests := make([]bool, configuration.NumFloors) // Opprett en liste for cab-bestillinger
+			for floor, cabOrder := range elevStateMsg.Cab {
+				cabRequests[floor] = cabOrder.StateofOrder == configuration.Confirmed // Sett cab-bestillinger til true hvis bestillingen er bekreftet
 			}
+
+			// Opprett en HRAElevState-struct for denne heisen
 			elevatorStates[elevatorID] = AssignerExecutable.HRAElevState{
-				Behavior:    single_elevator.ToString(elevState.Elev.Behaviour),
-				Floor:       elevState.Elev.Floor,
-				Direction:   elevio.DirToString(elevio.MotorDirection(elevState.Elev.Direction)),
-				CabRequests: cabRequests,
+				Behavior:    single_elevator.ToString(elevState.Behaviour),                  // Konverter Behaviour til streng
+				Floor:       elevState.Floor,                                                // Hent etasjen
+				Direction:   elevio.DirToString(elevio.MotorDirection(elevState.Direction)), // Konverter Direction til streng
+				CabRequests: cabRequests,                                                    // Legg til cab-bestillinger
 			}
 		}
 	}
-	input := AssignerExecutable.HRAInput{
+
+	// Returner HRAInput-structen med hall-bestillinger og heis-tilstander
+	return AssignerExecutable.HRAInput{
 		HallRequests: hallRequests,
 		States:       elevatorStates,
 	}
-	return input
 }
 
 func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) single_elevator.Orders {
@@ -330,6 +333,15 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	//fmt.Println("LOCAL WORLD VIEW", localWorldView.ElevatorStatusList)
 	//fmt.Println("RECEIVED WORLD VIEW", receivedWorldView.ElevatorStatusList)
 	//fmt.Println("Hall: ", localWorldView.HallOrderStatus)
+
+	// Oppdater tilstanden til hver heis i receivedWorldView
+	for id, elevState := range receivedWorldView.ElevatorStatusList {
+		// Hvis heisen finnes i receivedWorldView, oppdater tilstanden
+		if _, exists := localWorldView.ElevatorStatusList[id]; exists {
+			localWorldView.ElevatorStatusList[id] = elevState
+		}
+	}
+
 	for floor := range localWorldView.HallOrderStatus { // Iterate over hall orders. Merge hallOrderStatus
 		for button := range localWorldView.HallOrderStatus[floor] {
 			// Get the local and updated orders for floor and button

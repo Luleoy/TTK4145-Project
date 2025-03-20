@@ -7,6 +7,8 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+
+	//"fmt"
 	"reflect"
 
 	"time"
@@ -59,8 +61,11 @@ func WorldViewManager(
 			elevStateMsg := localWorldView.ElevatorStatusList[elevatorID] // Hent en kopi av ElevStateMsg fra mappen
 			elevStateMsg.Elev = elevatorState                             // Oppdater Elev-feltet i kopien
 			localWorldView.ElevatorStatusList[elevatorID] = elevStateMsg  // Sett den oppdaterte structen tilbake i mappen
-			WorldViewTXChannel <- *localWorldView                         // Send den oppdaterte WorldView til WorldViewTXChannel
-			SetLights(*localWorldView)                                    // Oppdater lysene
+			//fmt.Println("floor: ", elevatorID, elevStateMsg.Elev.Floor)
+			WorldViewTXChannel <- *localWorldView // Send den oppdaterte WorldView til WorldViewTXChannel
+			SetLights(*localWorldView)            // Oppdater lysene
+
+			//MÅ OPPDATERE HRAELEVSTATE
 
 		case buttonPressed := <-buttonPressedChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
