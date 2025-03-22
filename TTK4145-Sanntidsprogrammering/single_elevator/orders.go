@@ -87,6 +87,23 @@ func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 		} else if OrderMatrix[floor][elevio.BT_HallUp] && !ordersBelow(OrderMatrix, floor) {
 			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
 		}
+	case Direction(elevio.MD_Stop):
+		if !ordersAbove(OrderMatrix, floor) && !ordersBelow(OrderMatrix, floor) {
+			if OrderMatrix[floor][elevio.BT_HallUp] {
+				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+			}
+			if OrderMatrix[floor][elevio.BT_HallDown] {
+				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+			}
+		} else {
+			// Hvis det er bestillinger over eller under, fjern kun bestillingen som er i samsvar med retningen
+			if ordersAbove(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallUp] {
+				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
+			}
+			if ordersBelow(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallDown] {
+				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
+			}
+		}
 	}
 }
 

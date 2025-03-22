@@ -46,7 +46,7 @@ func InitializeWorldView(elevatorID string) WorldView {
 	return wv
 }
 
-func UpdateWorldViewWithButton(localWorldView WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
+func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
 	//fmt.Println("we have entered updateworldviewwithbutton")
 	if isNewOrder {
 		switch buttonPressed.Button {
@@ -91,10 +91,10 @@ func UpdateWorldViewWithButton(localWorldView WorldView, buttonPressed elevio.Bu
 		}
 	}
 	//fmt.Println("LocalWorldView etter buttonPressed: ", localWorldView)
-	return localWorldView
+	return *localWorldView
 }
 
-func ResetAckList(localWorldView WorldView) {
+func ResetAckList(localWorldView *WorldView) {
 	for floor := range localWorldView.HallOrderStatus {
 		for btn := range localWorldView.HallOrderStatus[floor] {
 			localWorldView.HallOrderStatus[floor][btn].AckList = make(map[string]bool)
@@ -346,8 +346,8 @@ func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder confi
 }
 */
 
-func MergeWorldViews(localWorldView WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
-	MergedWorldView := localWorldView
+func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
+	MergedWorldView := *localWorldView
 	//fmt.Println("LOCAL WORLD VIEW", localWorldView.ElevatorStatusList)
 	//fmt.Println("RECEIVED WORLD VIEW", receivedWorldView.ElevatorStatusList)
 	//fmt.Println("Hall: ", localWorldView.HallOrderStatus)
@@ -363,7 +363,7 @@ func MergeWorldViews(localWorldView WorldView, receivedWorldView WorldView, IDsA
 	for floor := range localWorldView.HallOrderStatus { // Iterate over hall orders. Merge hallOrderStatus
 		for button := range localWorldView.HallOrderStatus[floor] {
 			// Get the local and updated orders for floor and button
-			localOrder := localWorldView.HallOrderStatus[floor][button]
+			localOrder := &localWorldView.HallOrderStatus[floor][button]
 			receivedOrder := receivedWorldView.HallOrderStatus[floor][button]
 			HallOrderMerged := MergeOrders(localOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
@@ -400,8 +400,8 @@ func MergeWorldViews(localWorldView WorldView, receivedWorldView WorldView, IDsA
 	return MergedWorldView
 }
 
-func MergeOrders(localOrder configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
-	updatedLocalOrder := localOrder
+func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+	updatedLocalOrder := *localOrder
 	if updatedLocalOrder.AckList == nil {
 		updatedLocalOrder.AckList = make(map[string]bool)
 	}

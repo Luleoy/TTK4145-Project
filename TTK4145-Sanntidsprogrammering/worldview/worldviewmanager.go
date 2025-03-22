@@ -8,8 +8,8 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
 
+	"fmt"
 	"reflect"
-
 	"time"
 )
 
@@ -52,8 +52,8 @@ func WorldViewManager(
 		case <-SendLocalWorldViewTimer.C:
 			//fmt.Println("Sending ww")
 			localWorldView.ID = elevatorID
-			WorldViewTXChannel <- localWorldView
-			SetLights(localWorldView) //riktig oppdatering av lys?
+			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView) //riktig oppdatering av lys?
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer))
 
 		case elevatorState := <-elevatorStateChannel:
@@ -61,8 +61,8 @@ func WorldViewManager(
 			elevStateMsg.Elev = elevatorState                             // Oppdater Elev-feltet i kopien
 			localWorldView.ElevatorStatusList[elevatorID] = elevStateMsg  // Sett den oppdaterte structen tilbake i mappen
 			//fmt.Println("floor: ", elevatorID, elevStateMsg.Elev.Floor)
-			WorldViewTXChannel <- localWorldView // Send den oppdaterte WorldView til WorldViewTXChannel
-			SetLights(localWorldView)            // Oppdater lysene
+			WorldViewTXChannel <- *localWorldView // Send den oppdaterte WorldView til WorldViewTXChannel
+			SetLights(*localWorldView)            // Oppdater lysene
 
 			//MÅ OPPDATERE HRAELEVSTATE
 
@@ -72,8 +72,8 @@ func WorldViewManager(
 				continue
 			}
 			localWorldView = &newLocalWorldView
-			WorldViewTXChannel <- localWorldView
-			SetLights(localWorldView)
+			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView)
 			//denne er riktig
 			//fmt.Println("Nå har vi oppdatert på TX kanalen. Har sendt LWV")
 
@@ -84,37 +84,36 @@ func WorldViewManager(
 			}
 
 			localWorldView = &newLocalWorldView
-			WorldViewTXChannel <- localWorldView
-			SetLights(localWorldView)
+			WorldViewTXChannel <- *localWorldView
+			SetLights(*localWorldView)
 
 		//MESSAGE SYSTEM - connection with network
 		case receivedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
-			//fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
-			newLocalWorldView := MergeWorldViews(localWorldView.deepcopy(), receivedWorldView, IDsAliveElevators)
+			fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
+			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
-			if !reflect.DeepEqual(newLocalWorldView, localWorldView) {
+			if !reflect.DeepEqual(newLocalWorldView, *localWorldView) {
 				//fmt.Println("WorldViews are different")
 				WorldViewTXChannel <- newLocalWorldView
-				localWorldView = newLocalWorldView
-				SetLights(localWorldView)
+				localWorldView = &newLocalWorldView
+				SetLights(*localWorldView)
+			}
+			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
+			//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
 
-				AssignHallOrders := AssignOrder(localWorldView, IDsAliveElevators)
-				//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
-
-				OurHall := AssignHallOrders[localWorldView.ID]
-				OurCab := GetOurCAB(localWorldView, localWorldView.ID)
-				OrderMatrix := MergeCABandHRAout(OurHall, OurCab)
-				if OrderMatrix != PreviousOrderMatrix {
-					//fmt.Println("Fått en ny order")
-					newOrderChannel <- OrderMatrix
-					PreviousOrderMatrix = OrderMatrix
-					// fmt.Println("ORDERMATRIX:" ,PreviousOrderMatrix)
-				}
+			OurHall := AssignHallOrders[localWorldView.ID]
+			OurCab := GetOurCAB(*localWorldView, localWorldView.ID)
+			OrderMatrix := MergeCABandHRAout(OurHall, OurCab)
+			if OrderMatrix != PreviousOrderMatrix {
+				//fmt.Println("Fått en ny order")
+				newOrderChannel <- OrderMatrix
+				PreviousOrderMatrix = OrderMatrix
+				fmt.Println("ORDERMATRIX:", PreviousOrderMatrix)
 			}
 		}
-		SetLights(localWorldView)
+		SetLights(*localWorldView)
 		// WorldViewTXChannel <- l
 	}
 }
