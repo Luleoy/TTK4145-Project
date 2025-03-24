@@ -47,51 +47,52 @@ func InitializeWorldView(elevatorID string) WorldView {
 }
 
 func UpdateWorldViewWithButton(localWorldView *WorldView, buttonPressed elevio.ButtonEvent, isNewOrder bool) WorldView {
+	updatedLocalWorldView := *localWorldView
 	//fmt.Println("we have entered updateworldviewwithbutton")
 	if isNewOrder {
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
-			if localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder == configuration.None {
-				localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.OrderMsg{
+			if updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder == configuration.None {
+				updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button] = configuration.OrderMsg{
 					StateofOrder: configuration.UnConfirmed,
 					AckList:      make(map[string]bool),
 				}
-				localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].AckList[localWorldView.ID] = true
+				updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].AckList[updatedLocalWorldView.ID] = true
 			} else {
-				fmt.Println("Ignored button request, state: ", localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button])
+				fmt.Println("Ignored button request, state: ", updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button])
 			}
 		case elevio.BT_Cab:
-			if localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].StateofOrder == configuration.None {
-				localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor] = configuration.OrderMsg{
+			if updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor].StateofOrder == configuration.None {
+				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor] = configuration.OrderMsg{
 					StateofOrder: configuration.UnConfirmed,
 					AckList:      make(map[string]bool),
 				}
-				localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].AckList[localWorldView.ID] = true
+				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor].AckList[updatedLocalWorldView.ID] = true
 			} else {
-				fmt.Println("Ignored button request, state: ", localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor])
+				fmt.Println("Ignored button request, state: ", updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor])
 			}
 		}
 	} else {
 		fmt.Println("Done with order: ", buttonPressed)
 		switch buttonPressed.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
-			if localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder == configuration.Confirmed {
-				localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder = configuration.Completed
-				ResetAckList(localWorldView)
+			if updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder == configuration.Confirmed {
+				updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button].StateofOrder = configuration.Completed
+				ResetAckList(&updatedLocalWorldView)
 			} else {
-				fmt.Println("Tried to clear button which was not confirmed: ", localWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button])
+				fmt.Println("Tried to clear button which was not confirmed: ", updatedLocalWorldView.HallOrderStatus[buttonPressed.Floor][buttonPressed.Button])
 			}
 		case elevio.BT_Cab:
-			if localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].StateofOrder == configuration.Confirmed {
-				localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor].StateofOrder = configuration.Completed
-				ResetAckList(localWorldView)
+			if updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor].StateofOrder == configuration.Confirmed {
+				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor].StateofOrder = configuration.Completed
+				ResetAckList(&updatedLocalWorldView)
 			} else {
-				fmt.Println("Tried to clear button not confirmed: ", localWorldView.ElevatorStatusList[localWorldView.ID].Cab[buttonPressed.Floor])
+				fmt.Println("Tried to clear button not confirmed: ", updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[buttonPressed.Floor])
 			}
 		}
 	}
 	//fmt.Println("LocalWorldView etter buttonPressed: ", localWorldView)
-	return *localWorldView
+	return updatedLocalWorldView
 }
 
 func ResetAckList(localWorldView *WorldView) {
@@ -209,142 +210,10 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 	//fmt.Println("LOCAL WV ", worldView.HallOrderStatus)
 
 	input := HRAInputFormatting(worldView, IDsAliveElevators)
-	fmt.Println("Input til HRA: ", input)
+	//fmt.Println("Input til HRA: ", input)
 	outputAssigner := AssignerExecutable.Assigner(input)
 	return outputAssigner
 }
-
-//BØR PRØVE Å FÅ MERGE HALL OG MERGECAB TIL EN FUNKSJON
-
-// endre sånn at funksjonen returnerer den oppdaterte localorder i stede for å endre direkte i WV
-// det enste jeg har gjort er å oprette variablen updatedLocalhall som i starten er en kopi av localOrder og deretter er det denne variablen som endres
-// så returneres updatedLocalhall
-/*
-func MergeOrdersHall(localOrder *configuration.OrderMsg, updatedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
-	updatedLocalHall := *localOrder //ENDRE NAVN, ER FORVIRRENDE
-
-	if updatedLocalHall.AckList == nil {
-		updatedLocalHall.AckList = make(map[string]bool)
-	}
-
-	switch updatedOrder.StateofOrder {
-	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
-	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		if updatedLocalHall.StateofOrder == configuration.None { //|| updatedLocalHall.StateofOrder == configuration.Completed
-			updatedLocalHall.StateofOrder = configuration.UnConfirmed
-		}
-		if updatedLocalHall.StateofOrder == configuration.UnConfirmed { //handle barrier condition
-			updatedLocalHall.AckList[localWorldView.ID] = true
-			//MERGE ACKLISTER - legge til alle aktive heiser på nettet
-			allAcknowledged := true
-			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
-				if !updatedLocalHall.AckList[id] {
-					allAcknowledged = false
-					break
-				}
-			}
-			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
-				updatedLocalHall.StateofOrder = configuration.Confirmed
-			}
-		}
-	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
-		// fmt.Println("Helloooooooo, my order state: ", updatedLocalHall.StateofOrder)
-		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.UnConfirmed {
-			updatedLocalHall.StateofOrder = configuration.Confirmed
-		}
-	case configuration.Completed:
-		if updatedLocalHall.StateofOrder == configuration.None || updatedLocalHall.StateofOrder == configuration.Confirmed {
-			updatedLocalHall.StateofOrder = configuration.Completed
-		}
-		//NONE barrier
-	}
-	return updatedLocalHall
-}
-
-// endre sånn at funksjonen returnerer den oppdaterte localCABorder i stede for å endre direkte i WV
-// det enste jeg har gjort er å oprette variablen updatedLocalCab som i starten er en kopi av localCABOrder og deretter er det denne variablen som endres
-// så returneres updatedLocalCab
-func MergeOrdersCAB(localCABOrder *configuration.OrderMsg, updatedCABOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
-	updatedLocalCab := *localCABOrder
-
-	if updatedLocalCab.AckList == nil {
-		updatedLocalCab.AckList = make(map[string]bool)
-	}
-	// for id := range updatedOrder.AckList {
-	// 	localOrder.AckList[id] = true
-	// }
-
-	if order_new > current_order {
-		current_order = order_new;
-		current_order.AckList[ourId] = true
-	}
-
-	// should we convert to new order or keep our order
-	// with our new local order, does it satisfy the requirements for the barriers
-
-	//her håndterer vi states
-	switch localCABOrder.StateofOrder {
-	case configuration.None:
-		if updatedCABOrder.StateofOrder != configuration.Completed {
-			updatedLocalCab.StateofOrder = updatedCABOrder.StateofOrder
-			updatedLocalCab.AckList = updatedCABOrder.AckList
-			updatedLocalCab.AckList[localWorldView.ID] = true
-		}
-	case configuration.UnConfirmed:
-		if updatedCABOrder.StateofOrder == configuration.Confirmed || updatedCABOrder.StateofOrder == configuration.Completed {
-			// set our order to recieved order... add ourselves to acklist
-		} else if updatedCABOrder.StateofOrder == configuration.UnConfirmed {
-			// merge both acklists
-		}
-	}
-
-	//her håndterier vi barrier
-	if updatedLocalCab.StateofOrder == configuration.UnConfirmed {
-		if fullacklist(...) {
-			updatedLocalCab.StateofOrder = configuration.Confirmed;
-			resetacklit();
-		}
-	} else if updatedLocalCab.StateofOrder == configuration.Completed {
-		/// same
-	}
-
-
-	//gammel kode, skal ikke være her
-	switch updatedCABOrder.StateofOrder {
-	case configuration.None: //hvis vi får inn en order som er none = de vet ingenting, bare chiller her
-	case configuration.UnConfirmed: //stuck på unconfirmed / pass på
-		if updatedLocalCab.StateofOrder == configuration.None { //|| updatedLocalCab.StateofOrder == configuration.Completed
-			updatedLocalCab.StateofOrder = configuration.UnConfirmed
-			//updatedLocalCab.AckList[updatedWorldView.ID] = true
-		}
-		if updatedLocalCab.StateofOrder == configuration.UnConfirmed { //handle barrier condition
-			updatedLocalCab.AckList[localWorldView.ID] = true
-			allAcknowledged := true
-			for _, id := range IDsAliveElevators { // Check if all alive elevators have acknowledged this order
-				if !updatedLocalCab.AckList[id] {
-					fmt.Println("Id not in acklist: ", id)
-					allAcknowledged = false
-					break
-				}
-			}
-			fmt.Println("All acks: ", allAcknowledged)
-			if allAcknowledged { // If all alive elevators have acknowledged, transition to CONFIRMED
-				updatedLocalCab.StateofOrder = configuration.Confirmed
-				fmt.Println("Order confirmed")
-			}
-		}
-	case configuration.Confirmed: //skal aldri få en confirmed, pga barrieren
-		if updatedLocalCab.StateofOrder == configuration.None || updatedLocalCab.StateofOrder == configuration.UnConfirmed {
-			updatedLocalCab.StateofOrder = configuration.Confirmed
-		}
-	case configuration.Completed:
-		if updatedLocalCab.StateofOrder == configuration.None || localCABOrder.StateofOrder == configuration.Confirmed {
-			updatedLocalCab.StateofOrder = configuration.Completed
-		}
-	}
-	return updatedLocalCab
-}
-*/
 
 func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	MergedWorldView := *localWorldView

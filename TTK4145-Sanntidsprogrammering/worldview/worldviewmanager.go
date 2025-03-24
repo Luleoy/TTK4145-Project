@@ -8,7 +8,7 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
 
-	"fmt"
+	//"fmt"
 	"reflect"
 	"time"
 )
@@ -89,7 +89,7 @@ func WorldViewManager(
 
 		//MESSAGE SYSTEM - connection with network
 		case receivedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
-			fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
+			//fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
 			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
@@ -110,7 +110,7 @@ func WorldViewManager(
 				//fmt.Println("Fått en ny order")
 				newOrderChannel <- OrderMatrix
 				PreviousOrderMatrix = OrderMatrix
-				fmt.Println("ORDERMATRIX:", PreviousOrderMatrix)
+				//fmt.Println("ORDERMATRIX:", PreviousOrderMatrix)
 			}
 		}
 		SetLights(*localWorldView)
