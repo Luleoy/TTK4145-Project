@@ -8,7 +8,6 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
 
-	//"fmt"
 	"reflect"
 	"time"
 )
@@ -33,6 +32,7 @@ func WorldViewManager(
 	completedOrderChannel <-chan elevio.ButtonEvent,
 	IDPeersChannel <-chan []string,
 	elevatorStateChannel <-chan single_elevator.Elevator,
+	elevatorTimeoutTimer *time.Timer,
 ) {
 
 	initLocalWorldView := InitializeWorldView(elevatorID)
@@ -41,13 +41,31 @@ func WorldViewManager(
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer))
 
 	IDsAliveElevators := []string{elevatorID}
+	lastSeen := make(map[string]time.Time) // For å holde styr på siste gang vi så hver heis
+	lastSeen[elevatorID] = time.Now()      // Initialiser for vår egen heis
 
 	var PreviousOrderMatrix single_elevator.Orders
 
 	for {
 		select {
 		case IDList := <-IDPeersChannel:
-			IDsAliveElevators = IDList //IDs alive is correct
+			IDsAliveElevators = IDList
+			now := time.Now()
+			// Update last seen for all received IDs
+			for _, id := range IDList {
+				lastSeen[id] = now
+			}
+
+		case <-elevatorTimeoutTimer.C:
+			now := time.Now()
+			newAliveList := []string{}
+			for id, elevState := range localWorldView.ElevatorStatusList {
+				if now.Sub(lastSeen[id]) < 5*time.Second || elevState.Elev.Behaviour == single_elevator.Idle {
+					newAliveList = append(newAliveList, id)
+				}
+			}
+			IDsAliveElevators = newAliveList
+			elevatorTimeoutTimer.Reset(5 * time.Second)
 
 		case <-SendLocalWorldViewTimer.C:
 			//fmt.Println("Sending ww")
@@ -60,6 +78,7 @@ func WorldViewManager(
 			elevStateMsg := localWorldView.ElevatorStatusList[elevatorID] // Hent en kopi av ElevStateMsg fra mappen
 			elevStateMsg.Elev = elevatorState                             // Oppdater Elev-feltet i kopien
 			localWorldView.ElevatorStatusList[elevatorID] = elevStateMsg  // Sett den oppdaterte structen tilbake i mappen
+
 			//fmt.Println("floor: ", elevatorID, elevStateMsg.Elev.Floor)
 			WorldViewTXChannel <- *localWorldView // Send den oppdaterte WorldView til WorldViewTXChannel
 			SetLights(*localWorldView)            // Oppdater lysene
@@ -89,6 +108,7 @@ func WorldViewManager(
 
 		//MESSAGE SYSTEM - connection with network
 		case receivedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
+			lastSeen[receivedWorldView.ID] = time.Now()
 			//fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
 			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAliveElevators)
 			if !ValidateWorldView(newLocalWorldView) {

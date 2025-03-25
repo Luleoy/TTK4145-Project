@@ -10,6 +10,7 @@ import (
 	"TTK4145-Heislab/worldview"
 	"flag"
 	"fmt"
+	"time"
 )
 
 func main() {
@@ -52,6 +53,7 @@ func main() {
 	IDPeersChannel := make(chan []string)
 	peerUpdateChannel := make(chan peers.PeerUpdate)
 	elevatorStateChannel := make(chan single_elevator.Elevator, configuration.Buffer)
+	elevatorTimeoutTimer := time.NewTimer(5 * time.Second)
 
 	go bcast.Transmitter(configuration.BroadcastPort, WorldViewTXChannel)
 	go bcast.Receiver(configuration.BroadcastPort, WorldViewRXChannel)
@@ -66,7 +68,7 @@ func main() {
 
 	go single_elevator.SingleElevator(newOrderChannel, completedOrderChannel, elevatorStateChannel)
 	go communication.CommunicationHandler(elevatorID, peerUpdateChannel, IDPeersChannel)
-	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel)
+	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel, elevatorTimeoutTimer)
 
 	select {}
 }

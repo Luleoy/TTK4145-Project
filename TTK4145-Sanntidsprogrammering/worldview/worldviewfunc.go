@@ -127,6 +127,7 @@ func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 	return boolMatrix
 }
 
+/* VÅR HRAINPUT
 func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
 	hallRequests := ConvertHallOrderStatestoBool(worldView)            // Konverter hallbestillinger til en boolsk matrise
 	elevatorStates := make(map[string]AssignerExecutable.HRAElevState) // Opprett en map for å lagre tilstanden til hver heis
@@ -153,6 +154,34 @@ func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) Assigne
 	}
 
 	// Returner HRAInput-structen med hall-bestillinger og heis-tilstander
+	return AssignerExecutable.HRAInput{
+		HallRequests: hallRequests,
+		States:       elevatorStates,
+	}
+} */
+
+func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
+	hallRequests := ConvertHallOrderStatestoBool(worldView)
+	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
+
+	for _, elevatorID := range IDsAliveElevators {
+		elevStateMsg, exists := worldView.ElevatorStatusList[elevatorID]
+		if !exists { // Kun sjekk om heisen finnes
+			continue
+		}
+
+		cabRequests := make([]bool, configuration.NumFloors)
+		for floor, cabOrder := range elevStateMsg.Cab {
+			cabRequests[floor] = cabOrder.StateofOrder == configuration.Confirmed
+		}
+
+		elevatorStates[elevatorID] = AssignerExecutable.HRAElevState{
+			Behavior:    single_elevator.ToString(elevStateMsg.Elev.Behaviour),
+			Floor:       elevStateMsg.Elev.Floor,
+			Direction:   elevio.DirToString(elevio.MotorDirection(elevStateMsg.Elev.Direction)),
+			CabRequests: cabRequests,
+		}
+	}
 	return AssignerExecutable.HRAInput{
 		HallRequests: hallRequests,
 		States:       elevatorStates,

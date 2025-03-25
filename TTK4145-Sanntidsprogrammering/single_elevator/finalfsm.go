@@ -68,14 +68,25 @@ func SingleElevator(
 	var state Elevator
 	currentFloor := elevio.GetFloor()
 
+	//initialisering av single elevator
 	if currentFloor != -1 {
 		fmt.Println("Heis starter i etasje", currentFloor)
-		state = Elevator{Floor: currentFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+		if currentFloor == 0 {
+			elevio.SetMotorDirection(elevio.MD_Up)
+		} else {
+			elevio.SetMotorDirection(elevio.MD_Down)
+		}
+		// Vent til heisen forlater nåværende etasje
+		for elevio.GetFloor() != -1 {
+			time.Sleep(100 * time.Millisecond)
+		}
+		closestFloor := findClosestFloor()
+		elevio.SetMotorDirection(elevio.MD_Stop)
+		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
 	} else {
-		fmt.Println("Elevator beetween floors, go down")
+		fmt.Println("Heis starter mellom etasjer")
 		elevio.SetMotorDirection(elevio.MD_Down)
 		closestFloor := findClosestFloor()
-		fmt.Println("floor found: ", closestFloor)
 		elevio.SetMotorDirection(elevio.MD_Stop)
 		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
 	}
