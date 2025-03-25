@@ -14,8 +14,8 @@ const (
 	WatchdogTime     = 5 * time.Second
 	SendWVTimer      = 100 * time.Millisecond //for at lyset skal være raskere, gjør denne mindre, er bare stor for debugging
 
-	PeersPort     = 16988
-	BroadcastPort = 16977
+	PeersPort     = 16999
+	BroadcastPort = 16800
 )
 
 type OrderState int

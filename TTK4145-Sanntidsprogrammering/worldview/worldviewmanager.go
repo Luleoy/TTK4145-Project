@@ -7,6 +7,7 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
+	"fmt"
 
 	"reflect"
 	"time"
@@ -41,8 +42,8 @@ func WorldViewManager(
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer))
 
 	IDsAliveElevators := []string{elevatorID}
-	lastSeen := make(map[string]time.Time) // For å holde styr på siste gang vi så hver heis
-	lastSeen[elevatorID] = time.Now()      // Initialiser for vår egen heis
+	lastChanged := make(map[string]time.Time) // For å holde styr på siste gang vi så hver heis
+	lastChanged[elevatorID] = time.Now()      // Initialiser for vår egen heis
 
 	var PreviousOrderMatrix single_elevator.Orders
 
@@ -50,22 +51,22 @@ func WorldViewManager(
 		select {
 		case IDList := <-IDPeersChannel:
 			IDsAliveElevators = IDList
-			now := time.Now()
+			// now := time.Now()
 			// Update last seen for all received IDs
-			for _, id := range IDList {
-				lastSeen[id] = now
-			}
+			// for _, id := range IDList {
+			// 	lastSeen[id] = now
+			// }
 
-		case <-elevatorTimeoutTimer.C:
-			now := time.Now()
-			newAliveList := []string{}
-			for id, elevState := range localWorldView.ElevatorStatusList {
-				if now.Sub(lastSeen[id]) < 5*time.Second || elevState.Elev.Behaviour == single_elevator.Idle {
-					newAliveList = append(newAliveList, id)
-				}
-			}
-			IDsAliveElevators = newAliveList
-			elevatorTimeoutTimer.Reset(5 * time.Second)
+		//case <-elevatorTimeoutTimer.C:
+		// now := time.Now()
+		// newAliveList := []string{}
+		// for id, elevState := range localWorldView.ElevatorStatusList {
+		// 	if now.Sub(lastSeen[id]) < 5*time.Second || elevState.Elev.Behaviour == single_elevator.Idle {
+		// 		newAliveList = append(newAliveList, id)
+		// 	}
+		// }
+		// IDsAliveElevators = newAliveList
+		// elevatorTimeoutTimer.Reset(5 * time.Second)
 
 		case <-SendLocalWorldViewTimer.C:
 			//fmt.Println("Sending ww")
@@ -82,8 +83,6 @@ func WorldViewManager(
 			//fmt.Println("floor: ", elevatorID, elevStateMsg.Elev.Floor)
 			WorldViewTXChannel <- *localWorldView // Send den oppdaterte WorldView til WorldViewTXChannel
 			SetLights(*localWorldView)            // Oppdater lysene
-
-			//MÅ OPPDATERE HRAELEVSTATE
 
 		case buttonPressed := <-buttonPressedChannel:
 			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
@@ -108,9 +107,40 @@ func WorldViewManager(
 
 		//MESSAGE SYSTEM - connection with network
 		case receivedWorldView := <-WorldViewRXChannel: //mottar en melding fra en annen heis
-			lastSeen[receivedWorldView.ID] = time.Now()
+
+			lastChanged = UpdateLastChanged(*localWorldView, receivedWorldView, lastChanged)
+
+			IDsAvailableForAssignment := []string{elevatorID}
+			for _, id := range IDsAliveElevators {
+				if lastChange_i, ok := lastChanged[id]; ok && id != elevatorID {
+					if time.Now().Sub(lastChange_i) < 10*time.Second {
+						IDsAvailableForAssignment = append(IDsAvailableForAssignment, id)
+					}
+				}
+			}
+			// if len(IDsAvailableForAssignment) == 0{
+			// 	fmt.Println("Only us which can take order??")
+			// } else {
+			// 	fmt.Println("Assigment available: ", IDsAvailableForAssignment)
+			// }
+
+			// lastChanged = updateLastChanged(localWorldView, receivedWorldView, lastChanged)
+			///
+			// id == recievedww.eleavtorId
+			// if "id not in localww" || locaworldview[id].state != recievedww[id].state || localww[id].state == Idle  {
+			//	lastChanged[id] = time.Now()
+			//}
+			//
+
+			// idsAvailableForAssignment = []...
+			// for id in idsalive {
+			// if lastChanged[id].sub(...) > 0 {
+			// idsAliveForAssigment[id] = true
+			//}
+			//}
+
 			//fmt.Println("Updated world view ", receivedWorldView.ElevatorStatusList[receivedWorldView.ID])
-			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAliveElevators)
+			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAvailableForAssignment)
 			if !ValidateWorldView(newLocalWorldView) {
 				continue
 			}
@@ -120,8 +150,9 @@ func WorldViewManager(
 				localWorldView = &newLocalWorldView
 				SetLights(*localWorldView)
 			}
-			AssignHallOrders := AssignOrder(*localWorldView, IDsAliveElevators)
-			//fmt.Println("printing AsiignHallOrders: ", AssignHallOrders)
+			AssignHallOrders := AssignOrder(*localWorldView, IDsAvailableForAssignment)
+
+			// fmt.Println("\n\nprinting AsiignHallOrders: ", AssignHallOrders)
 
 			OurHall := AssignHallOrders[localWorldView.ID]
 			OurCab := GetOurCAB(*localWorldView, localWorldView.ID)
@@ -131,7 +162,22 @@ func WorldViewManager(
 				newOrderChannel <- OrderMatrix
 				PreviousOrderMatrix = OrderMatrix
 				//fmt.Println("ORDERMATRIX:", PreviousOrderMatrix)
+				anyOrders := false
+				for i := 0; i < configuration.NumFloors; i++ {
+					for j := 0; j < configuration.NumButtons; j++ {
+						anyOrders = anyOrders || OrderMatrix[i][j]
+					}
+				}
+				if !anyOrders {
+					fmt.Println("No orders")
+				} else {
+					fmt.Println("My orders: ", OrderMatrix)
+				}
+				fmt.Println("A state: ", localWorldView.ElevatorStatusList["A"])
+				fmt.Println("C state: ", localWorldView.ElevatorStatusList["C"])
 			}
+
+			// panic("test")
 		}
 		SetLights(*localWorldView)
 		// WorldViewTXChannel <- l

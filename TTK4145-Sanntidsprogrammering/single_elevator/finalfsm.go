@@ -164,7 +164,6 @@ func SingleElevator(
 		case state.Floor = <-floorEnteredChannel:
 			fmt.Println("New floor: ", state.Floor)
 			elevio.SetFloorIndicator(state.Floor)
-			elevatorStateChannel <- state
 			switch state.Behaviour {
 			case Moving:
 				// if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {

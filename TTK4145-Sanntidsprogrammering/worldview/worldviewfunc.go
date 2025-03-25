@@ -6,6 +6,7 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/single_elevator"
 	"fmt"
+	"time"
 )
 
 func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
@@ -239,8 +240,31 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 	//fmt.Println("LOCAL WV ", worldView.HallOrderStatus)
 
 	input := HRAInputFormatting(worldView, IDsAliveElevators)
+
+	// var input AssignerExecutable.HRAInput
+	// input.HallRequests = [][2]bool{{false, false}, {false, false}, {false, false}, {false, false}}
+	// input.HallRequests[2][0] = true
+	// // input.HallRequests[2][1] = true
+	// var a_behave AssignerExecutable.HRAElevState
+	// a_behave.Behavior = "moving"
+	// a_behave.Floor = 3
+	// a_behave.Direction = "down"
+	// a_behave.CabRequests = []bool{false, false, false, false}
+	// var b_behave AssignerExecutable.HRAElevState
+	// b_behave.Behavior = "moving"
+	// b_behave.Floor = 2
+	// b_behave.Direction = "down"
+	// b_behave.CabRequests = []bool{true, false, false, false}
+	// input.States = make(map[string]AssignerExecutable.HRAElevState)
+	// input.States["A"] = a_behave
+	// input.States["B"] = b_behave
+
+	// input.States["A"].Floor = 3
+	// input.States
 	//fmt.Println("Input til HRA: ", input)
 	outputAssigner := AssignerExecutable.Assigner(input)
+	// fmt.Println("\n\n\nAssigned orders: ", outputAssigner)
+	// panic("test")
 	return outputAssigner
 }
 
@@ -409,3 +433,42 @@ func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration
 	// }
 	return updatedLocalOrder
 }
+
+func isIDInElevatorStatusList(localWorldview WorldView, receivedWorldview WorldView) bool {
+	for id, _ := range localWorldview.ElevatorStatusList {
+		if id == receivedWorldview.ID {
+			return true
+		}
+	}
+	return false
+}
+
+// DENNE ER NOK IKKE RIKTIG
+func UpdateLastChanged(localWorldView WorldView, receivedWorldView WorldView, currentLastChanged map[string]time.Time) map[string]time.Time {
+	newLastChanged := make(map[string]time.Time)
+	for id, val := range currentLastChanged {
+		newLastChanged[id] = val
+	}
+
+	if _, exists := newLastChanged[receivedWorldView.ID]; !exists {
+		newLastChanged[receivedWorldView.ID] = time.Now()
+	} else if localWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour ||
+		localWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Floor != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Floor ||
+		receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour == single_elevator.Idle {
+		newLastChanged[receivedWorldView.ID] = time.Now()
+	}
+
+	// if localWorldView.ID == receivedWorldView.ID || !isIDInElevatorStatusList(localWorldView, receivedWorldView) {
+	// 	if localWorldView.ElevatorStatusList[localWorldView.ID].Elev.Behaviour != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour || localWorldView.ElevatorStatusList[localWorldView.ID].Elev.Behaviour == single_elevator.Idle {
+	// 		lastChanged[receivedWorldView.ID] = time.Now()
+	// 	}
+	// }
+	return newLastChanged
+}
+
+///
+// id == recievedww.eleavtorId
+// if "id not in localww" || locaworldview[id].state != recievedww[id].state || localww[id].state == Idle  {
+//	lastChanged[id] = time.Now()
+//}
+//

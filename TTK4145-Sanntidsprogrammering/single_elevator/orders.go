@@ -3,6 +3,7 @@ package single_elevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
+	"fmt"
 	"time"
 )
 
@@ -27,6 +28,16 @@ func orderHere(orders Orders, floor int) bool {
 }
 
 func shouldStopAtFloor(orders Orders, floor int, direction Direction) bool {
+	anyOrders := false
+	for i := 0; i < configuration.NumFloors; i++ {
+		for j := 0; j < configuration.NumButtons; j++ {
+			anyOrders = anyOrders || orders[i][j]
+		}
+	}
+	if !anyOrders {
+		fmt.Println("Stopping due to no orders")
+		return true
+	}
 	if orders[floor][elevio.BT_Cab] || floor == 0 || floor == configuration.NumFloors-1 {
 		return true
 	}

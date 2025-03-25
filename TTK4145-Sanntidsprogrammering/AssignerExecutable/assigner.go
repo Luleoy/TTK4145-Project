@@ -46,6 +46,7 @@ func Assigner(input HRAInput) map[string][][2]bool {
 		fmt.Println("json.Marshal error: ", err)
 		panic(err)
 	}
+	// fmt.Println("HRA INPUT:\n", string(jsonBytes))
 
 	ret, err := exec.Command("AssignerExecutable/executables/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
@@ -81,4 +82,15 @@ må sende hver av linjene til riktig heis. i order manager konverterer vi fra st
 	[false, true],
 	[false, false],
 	[false, false]]
-}*/
+}
+
+{
+"hallRequests":
+	[[false,false],[false,false],[false,false],[false,false]],
+	"states":{
+		"A":{"behavior":"DoorOpen","floor":1,"direction":"up","cabRequests":[false,false,false,false]},
+		"C":{"behavior":"Idle","floor":0,"direction":"stop","cabRequests":[false,false,false,false]}
+	}
+}
+
+*/
