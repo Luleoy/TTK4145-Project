@@ -3,15 +3,14 @@ package singleElevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
-	"fmt"
 	"time"
 )
 
 type Orders [configuration.NumFloors][configuration.NumButtons]bool
 
-func orderHere(orders Orders, floor int) bool {
-	for b := 0; b < configuration.NumButtons; b++ {
-		if orders[floor][b] {
+func hasOrderAtFloor(orders Orders, floor int) bool {
+	for button := 0; button < configuration.NumButtons; button++ {
+		if orders[floor][button] {
 			return true
 		}
 	}
@@ -26,7 +25,6 @@ func shouldStopAtFloor(orders Orders, floor int, direction Direction) bool {
 		}
 	}
 	if !anyOrders {
-		fmt.Println("Stopping due to no orders")
 		return true
 	}
 	if orders[floor][elevio.BT_Cab] || floor == 0 || floor == configuration.NumFloors-1 {
@@ -37,14 +35,14 @@ func shouldStopAtFloor(orders Orders, floor int, direction Direction) bool {
 		if orders[floor][elevio.BT_HallUp] {
 			return true
 		}
-		if orders[floor][elevio.BT_HallDown] && !ordersAbove(orders, floor) {
+		if orders[floor][elevio.BT_HallDown] && !hasOrdersAbove(orders, floor) {
 			return true
 		}
 	case Down:
 		if orders[floor][elevio.BT_HallDown] {
 			return true
 		}
-		if orders[floor][elevio.BT_HallUp] && !ordersBelow(orders, floor) {
+		if orders[floor][elevio.BT_HallUp] && !hasOrdersBelow(orders, floor) {
 			return true
 		}
 	case Stop:
@@ -54,18 +52,18 @@ func shouldStopAtFloor(orders Orders, floor int, direction Direction) bool {
 
 }
 
-func ordersAbove(orders Orders, floor int) bool {
+func hasOrdersAbove(orders Orders, floor int) bool {
 	for f := floor + 1; f < configuration.NumFloors; f++ {
-		if orderHere(orders, f) {
+		if hasOrderAtFloor(orders, f) {
 			return true
 		}
 	}
 	return false
 }
 
-func ordersBelow(orders Orders, floor int) bool {
+func hasOrdersBelow(orders Orders, floor int) bool {
 	for f := floor - 1; f >= 0; f-- {
-		if orderHere(orders, f) {
+		if hasOrderAtFloor(orders, f) {
 			return true
 		}
 	}
@@ -80,17 +78,17 @@ func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 	case Direction(elevio.MD_Up):
 		if OrderMatrix[floor][elevio.BT_HallUp] {
 			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
-		} else if OrderMatrix[floor][elevio.BT_HallDown] && !ordersAbove(OrderMatrix, floor) {
+		} else if OrderMatrix[floor][elevio.BT_HallDown] && !hasOrdersAbove(OrderMatrix, floor) {
 			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
 		}
 	case Direction(elevio.MD_Down):
 		if OrderMatrix[floor][elevio.BT_HallDown] {
 			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
-		} else if OrderMatrix[floor][elevio.BT_HallUp] && !ordersBelow(OrderMatrix, floor) {
+		} else if OrderMatrix[floor][elevio.BT_HallUp] && !hasOrdersBelow(OrderMatrix, floor) {
 			completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
 		}
 	case Direction(elevio.MD_Stop):
-		if !ordersAbove(OrderMatrix, floor) && !ordersBelow(OrderMatrix, floor) {
+		if !hasOrdersAbove(OrderMatrix, floor) && !hasOrdersBelow(OrderMatrix, floor) {
 			if OrderMatrix[floor][elevio.BT_HallUp] {
 				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
 			}
@@ -98,11 +96,10 @@ func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
 			}
 		} else {
-			// Hvis det er bestillinger over eller under, fjern kun bestillingen som er i samsvar med retningen
-			if ordersAbove(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallUp] {
+			if hasOrdersAbove(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallUp] {
 				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallUp}
 			}
-			if ordersBelow(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallDown] {
+			if hasOrdersBelow(OrderMatrix, floor) && OrderMatrix[floor][elevio.BT_HallDown] {
 				completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_HallDown}
 			}
 		}
@@ -129,43 +126,39 @@ func OrderManager(newOrderChannel chan<- Orders,
 	}
 }*/
 
-//output fra hallrequest assigner som skal sendes inn i ordermanager
-//vi har enere allerede. er ikke "nye orders" men heller orders in general
-//hall request assigner skal kjøres kontinuerlig
-
 type DirectionBehaviourPair struct {
 	Direction elevio.MotorDirection
-	Behaviour Behaviour //vi skal hente ut Behaviour (moving, idle, dooropen)
+	Behaviour Behaviour
 }
 
 func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) DirectionBehaviourPair {
 	switch direction {
 	case Up:
-		if ordersAbove(OrderMatrix, floor) {
+		if hasOrdersAbove(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Up, Moving}
-		} else if orderHere(OrderMatrix, floor) {
+		} else if hasOrderAtFloor(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Down, DoorOpen}
-		} else if ordersBelow(OrderMatrix, floor) {
+		} else if hasOrdersBelow(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
 			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Down:
-		if ordersBelow(OrderMatrix, floor) {
+		if hasOrdersBelow(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Down, Moving}
-		} else if orderHere(OrderMatrix, floor) {
+		} else if hasOrderAtFloor(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Up, DoorOpen}
-		} else if ordersAbove(OrderMatrix, floor) {
+		} else if hasOrdersAbove(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Up, Moving}
 		} else {
 			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Stop:
-		if orderHere(OrderMatrix, floor) {
+		if hasOrderAtFloor(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Stop, DoorOpen}
-		} else if ordersAbove(OrderMatrix, floor) {
+		} else if hasOrdersAbove(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Up, Moving}
-		} else if ordersBelow(OrderMatrix, floor) {
+		} else if hasOrdersBelow(OrderMatrix, floor) {
 			return DirectionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
 			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
@@ -181,6 +174,6 @@ func findClosestFloor() int {
 		if floor != -1 {
 			return floor
 		}
-		time.Sleep(100 * time.Millisecond) // Sjekker hvert 100 ms
+		time.Sleep(100 * time.Millisecond)
 	}
 }
