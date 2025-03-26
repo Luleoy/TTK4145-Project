@@ -275,12 +275,21 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	//fmt.Println("Hall: ", localWorldView.HallOrderStatus)
 
 	// Oppdater tilstanden til hver heis i receivedWorldView
-	for id, elevState := range receivedWorldView.ElevatorStatusList {
-		// Hvis heisen finnes i receivedWorldView, oppdater tilstanden
-		if _, exists := localWorldView.ElevatorStatusList[id]; exists {
-			localWorldView.ElevatorStatusList[id] = elevState
-		}
+	// for id, elevState := range receivedWorldView.ElevatorStatusList {
+	// 	// Hvis heisen finnes i receivedWorldView, oppdater tilstanden
+	// 	if _, exists := localWorldView.ElevatorStatusList[id]; exists {
+	// 		localWorldView.ElevatorStatusList[id] = elevState
+	// 	}
+	// }
+	if _, exists := localWorldView.ElevatorStatusList[receivedWorldView.ID]; exists {
+		currentElevState := localWorldView.ElevatorStatusList[receivedWorldView.ID]
+		currentElevState.Elev = receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev
+		localWorldView.ElevatorStatusList[receivedWorldView.ID] = currentElevState
+	} else {
+		localWorldView.ElevatorStatusList[receivedWorldView.ID] = receivedWorldView.ElevatorStatusList[receivedWorldView.ID]
 	}
+
+
 
 	for floor := range localWorldView.HallOrderStatus { // Iterate over hall orders. Merge hallOrderStatus
 		for button := range localWorldView.HallOrderStatus[floor] {

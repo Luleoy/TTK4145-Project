@@ -12,10 +12,10 @@ const (
 	DisconnectTime   = 1 * time.Second
 	DoorOpenDuration = 3 * time.Second
 	WatchdogTime     = 5 * time.Second
-	SendWVTimer      = 100 * time.Millisecond //for at lyset skal være raskere, gjør denne mindre, er bare stor for debugging
+	SendWVTimer      = 10 * time.Millisecond //for at lyset skal være raskere, gjør denne mindre, er bare stor for debugging
 
-	PeersPort     = 16999
-	BroadcastPort = 16800
+	PeersPort     = 16258
+	BroadcastPort = 16091
 )
 
 type OrderState int
