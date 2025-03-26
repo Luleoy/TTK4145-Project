@@ -2,7 +2,7 @@ package worldview
 
 import (
 	"TTK4145-Heislab/configuration"
-	"TTK4145-Heislab/single_elevator"
+	"TTK4145-Heislab/singleElevator"
 	"fmt"
 )
 
@@ -81,7 +81,7 @@ func ValidateOrder(order configuration.OrderMsg) bool {
 	return true
 }
 
-func ValidateElevatorCoreState(state single_elevator.Elevator) bool {
+func ValidateElevatorCoreState(state singleElevator.Elevator) bool {
 	// Ensure floor is within a valid range
 	if state.Floor < 0 || state.Floor >= configuration.NumFloors {
 		fmt.Printf("Validation failed: Invalid floor value %d\n", state.Floor)
@@ -89,13 +89,13 @@ func ValidateElevatorCoreState(state single_elevator.Elevator) bool {
 	}
 
 	// Ensure behavior is valid
-	if state.Behaviour != single_elevator.Idle && state.Behaviour != single_elevator.Moving && state.Behaviour != single_elevator.DoorOpen {
+	if state.Behaviour != singleElevator.Idle && state.Behaviour != singleElevator.Moving && state.Behaviour != singleElevator.DoorOpen {
 		fmt.Printf("Validation failed: Invalid behavior %d\n", state.Behaviour)
 		return false
 	}
 
 	// Ensure an elevator cannot be both Moving and Idle
-	if state.Behaviour == single_elevator.Moving && state.Behaviour == single_elevator.Idle {
+	if state.Behaviour == singleElevator.Moving && state.Behaviour == singleElevator.Idle {
 		fmt.Println("Validation failed: Elevator cannot be both Moving and Idle at the same time")
 		return false
 	}

@@ -6,7 +6,7 @@ package worldview
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
-	"TTK4145-Heislab/single_elevator"
+	"TTK4145-Heislab/singleElevator"
 	"fmt"
 
 	"reflect"
@@ -14,7 +14,7 @@ import (
 )
 
 type ElevStateMsg struct {
-	Elev single_elevator.Elevator
+	Elev singleElevator.Elevator
 	Cab  []configuration.OrderMsg
 }
 
@@ -29,10 +29,10 @@ func WorldViewManager(
 	WorldViewTXChannel chan<- WorldView,
 	WorldViewRXChannel <-chan WorldView,
 	buttonPressedChannel <-chan elevio.ButtonEvent,
-	newOrderChannel chan<- single_elevator.Orders,
+	newOrderChannel chan<- singleElevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
 	IDPeersChannel <-chan []string,
-	elevatorStateChannel <-chan single_elevator.Elevator,
+	elevatorStateChannel <-chan singleElevator.Elevator,
 	elevatorTimeoutTimer *time.Timer,
 ) {
 
@@ -45,7 +45,7 @@ func WorldViewManager(
 	lastChanged := make(map[string]time.Time) // For å holde styr på siste gang vi så hver heis
 	lastChanged[elevatorID] = time.Now()      // Initialiser for vår egen heis
 
-	var PreviousOrderMatrix single_elevator.Orders
+	var PreviousOrderMatrix singleElevator.Orders
 
 	for {
 		select {

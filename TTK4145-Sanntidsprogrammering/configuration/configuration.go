@@ -12,7 +12,7 @@ const (
 	DisconnectTime   = 1 * time.Second
 	DoorOpenDuration = 3 * time.Second
 	WatchdogTime     = 5 * time.Second
-	SendWVTimer      = 10 * time.Millisecond //for at lyset skal være raskere, gjør denne mindre, er bare stor for debugging
+	SendWVTimer      = 10 * time.Millisecond
 
 	PeersPort     = 16258
 	BroadcastPort = 16091
@@ -23,12 +23,11 @@ type OrderState int
 const (
 	None OrderState = iota
 	UnConfirmed
-	//barrier everyone needs to acknowledge before going to confirmed
 	Confirmed
 	Completed
 )
 
 type OrderMsg struct {
-	StateofOrder OrderState //state of HALL or CAB order
+	StateofOrder OrderState
 	AckList      map[string]bool
 }

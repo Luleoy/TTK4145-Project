@@ -1,4 +1,4 @@
-package single_elevator
+package singleElevator
 
 import (
 	"TTK4145-Heislab/configuration"
@@ -7,20 +7,11 @@ import (
 	"time"
 )
 
-/*
-func SetLights(orderMatrix Orders) { //skru av og på lys
-	for f := 0; f < configuration.NumFloors; f++ {
-		for b := 0; b < configuration.NumButtons; b++ {
-			elevio.SetButtonLamp(elevio.ButtonType(b), f, orderMatrix[f][b])
-		}
-	}
-} */
-
-type Orders [configuration.NumFloors][configuration.NumButtons]bool //creating matrix to take orders. floors*buttons
+type Orders [configuration.NumFloors][configuration.NumButtons]bool
 
 func orderHere(orders Orders, floor int) bool {
 	for b := 0; b < configuration.NumButtons; b++ {
-		if orders[floor][b] { // Hvis det finnes en aktiv forespørsel
+		if orders[floor][b] {
 			return true
 		}
 	}

@@ -1,10 +1,10 @@
 package worldview
 
 import (
-	"TTK4145-Heislab/AssignerExecutable"
+	"TTK4145-Heislab/assignerExecutable"
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
-	"TTK4145-Heislab/single_elevator"
+	"TTK4145-Heislab/singleElevator"
 	"fmt"
 	"time"
 )
@@ -40,7 +40,7 @@ func InitializeWorldView(elevatorID string) WorldView {
 		HallOrderStatus:    InitializeHallOrderStatus(),
 	}
 	elevatorState := ElevStateMsg{
-		Elev: single_elevator.Elevator{},
+		Elev: singleElevator.Elevator{},
 		Cab:  InitializeCabOrders(),
 	}
 	wv.ElevatorStatusList[elevatorID] = elevatorState
@@ -161,9 +161,9 @@ func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) Assigne
 	}
 } */
 
-func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) AssignerExecutable.HRAInput {
+func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) assignerExecutable.HRAInput {
 	hallRequests := ConvertHallOrderStatestoBool(worldView)
-	elevatorStates := make(map[string]AssignerExecutable.HRAElevState)
+	elevatorStates := make(map[string]assignerExecutable.HRAElevState)
 
 	for _, elevatorID := range IDsAliveElevators {
 		elevStateMsg, exists := worldView.ElevatorStatusList[elevatorID]
@@ -176,21 +176,21 @@ func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) Assigne
 			cabRequests[floor] = cabOrder.StateofOrder == configuration.Confirmed
 		}
 
-		elevatorStates[elevatorID] = AssignerExecutable.HRAElevState{
-			Behavior:    single_elevator.ToString(elevStateMsg.Elev.Behaviour),
+		elevatorStates[elevatorID] = assignerExecutable.HRAElevState{
+			Behavior:    singleElevator.BehaviourToString(elevStateMsg.Elev.Behaviour),
 			Floor:       elevStateMsg.Elev.Floor,
 			Direction:   elevio.DirToString(elevio.MotorDirection(elevStateMsg.Elev.Direction)),
 			CabRequests: cabRequests,
 		}
 	}
-	return AssignerExecutable.HRAInput{
+	return assignerExecutable.HRAInput{
 		HallRequests: hallRequests,
 		States:       elevatorStates,
 	}
 }
 
-func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) single_elevator.Orders {
-	var OrderMatrix single_elevator.Orders
+func MergeCABandHRAout(OurHall [][2]bool, Ourcab []bool) singleElevator.Orders {
+	var OrderMatrix singleElevator.Orders
 	for floor, cabButton := range Ourcab {
 		if cabButton {
 			OrderMatrix[floor][2] = true
@@ -262,7 +262,7 @@ func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 	// input.States["A"].Floor = 3
 	// input.States
 	//fmt.Println("Input til HRA: ", input)
-	outputAssigner := AssignerExecutable.Assigner(input)
+	outputAssigner := assignerExecutable.Assigner(input)
 	// fmt.Println("\n\n\nAssigned orders: ", outputAssigner)
 	// panic("test")
 	return outputAssigner
@@ -288,8 +288,6 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	} else {
 		localWorldView.ElevatorStatusList[receivedWorldView.ID] = receivedWorldView.ElevatorStatusList[receivedWorldView.ID]
 	}
-
-
 
 	for floor := range localWorldView.HallOrderStatus { // Iterate over hall orders. Merge hallOrderStatus
 		for button := range localWorldView.HallOrderStatus[floor] {
@@ -463,7 +461,7 @@ func UpdateLastChanged(localWorldView WorldView, receivedWorldView WorldView, cu
 		newLastChanged[receivedWorldView.ID] = time.Now()
 	} else if localWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour ||
 		localWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Floor != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Floor ||
-		receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour == single_elevator.Idle {
+		receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour == singleElevator.Idle {
 		newLastChanged[receivedWorldView.ID] = time.Now()
 	}
 

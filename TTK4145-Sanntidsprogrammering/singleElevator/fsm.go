@@ -1,4 +1,4 @@
-package single_elevator
+package singleElevator
 
 import (
 	"TTK4145-Heislab/configuration"
@@ -7,12 +7,11 @@ import (
 	"time"
 )
 
-type Elevator struct { //the elevators current state
-	Floor       int
-	Direction   Direction //directions: Up, Down
-	Obstructed  bool
-	Behaviour   Behaviour //behaviours: Idle, Moving and DoorOpen
-	Unavailable bool      //MÅ OPPDATERE - legg til i STOP
+type Elevator struct {
+	Floor      int
+	Direction  Direction
+	Obstructed bool
+	Behaviour  Behaviour
 }
 
 type Behaviour int
@@ -23,7 +22,7 @@ const (
 	DoorOpen
 )
 
-func ToString(behaviour Behaviour) string {
+func BehaviourToString(behaviour Behaviour) string {
 	switch behaviour {
 	case Idle:
 		return "Idle"
@@ -36,10 +35,10 @@ func ToString(behaviour Behaviour) string {
 	}
 }
 
+// ALLE FUNSKJONER NILS HAR MED MÅ HA STOR FORBOKSTAV
 func runTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChannel <-chan bool) {
 	deadline := time.Now().Add(100000 * time.Hour)
 	is_running := false
-
 	for {
 		select {
 		case <-resetTimerChannel:
@@ -55,19 +54,16 @@ func runTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChan
 	}
 }
 
-func SingleElevator(
-	newOrderChannel <-chan Orders, //receiving new orders FROM ORDER MANAGER
-	completedOrderChannel chan<- elevio.ButtonEvent, //sending information about completed orders TO ORDER MANAGER
+func SingleElevatorFsm(
+	newOrderChannel <-chan Orders,
+	completedOrderChannel chan<- elevio.ButtonEvent,
 	elevatorStateChannel chan<- Elevator,
 ) {
-	//Initialization of elevator
-	fmt.Println("setting motor down")
 
-	//elevio.SetMotorDirection(elevio.MD_Down)
-	//state := Elevator{Direction: Down, Behaviour: Moving}
 	var state Elevator
 	currentFloor := elevio.GetFloor()
 
+	//DETTE MÅ LEGGES INN I EN FUNSKJON
 	//initialisering av single elevator
 	if currentFloor != -1 {
 		fmt.Println("Heis starter i etasje", currentFloor)
@@ -83,6 +79,7 @@ func SingleElevator(
 		closestFloor := findClosestFloor()
 		elevio.SetMotorDirection(elevio.MD_Stop)
 		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+
 	} else {
 		fmt.Println("Heis starter mellom etasjer")
 		elevio.SetMotorDirection(elevio.MD_Down)
@@ -95,6 +92,7 @@ func SingleElevator(
 	obstructedChannel := make(chan bool, 16)
 	stopPressedChannel := make(chan bool, 16)
 
+	//FLYTTE INITIALISERING AV GO-ROUTINER TIL MAIN
 	go elevio.PollFloorSensor(floorEnteredChannel)
 
 	timerOutChannel := make(chan bool)
@@ -109,7 +107,7 @@ func SingleElevator(
 
 	for {
 		select {
-		case <-timerOutChannel:
+		case <-timerOutChannel: //Handles doortimeout: either closes the door or resets the timer
 			switch state.Behaviour {
 			case DoorOpen:
 				DirectionBehaviourPair := ordersChooseDirection(state.Floor, state.Direction, OrderMatrix)
@@ -122,14 +120,12 @@ func SingleElevator(
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
-
 				}
 			case Moving:
-				panic("timeroutchannel in moving")
+				panic("Timeroutchannel while in Moving")
 			}
 		case stopbuttonpressed := <-stopPressedChannel:
 			if stopbuttonpressed {
-				fmt.Println("StopButton is pressed")
 				elevio.SetStopLamp(true)
 				elevio.SetMotorDirection(elevio.MD_Stop)
 			} else {
@@ -138,8 +134,6 @@ func SingleElevator(
 		case obstruction := <-obstructedChannel:
 			if obstruction {
 				state.Obstructed = true
-				state.Unavailable = true
-				fmt.Println("Obstruction detected! Elevator unavailable")
 				state.Behaviour = DoorOpen
 				elevio.SetDoorOpenLamp(true)
 				resetTimerChannel <- true
@@ -148,8 +142,6 @@ func SingleElevator(
 					case obstruction = <-obstructedChannel:
 						if !obstruction {
 							state.Obstructed = false
-							state.Unavailable = false
-							fmt.Println("Obstruction cleared! Elevator available.")
 							if state.Behaviour == DoorOpen {
 								resetTimerChannel <- true
 							}
@@ -162,22 +154,18 @@ func SingleElevator(
 				}
 			}
 		case state.Floor = <-floorEnteredChannel:
-			fmt.Println("New floor: ", state.Floor)
 			elevio.SetFloorIndicator(state.Floor)
 			switch state.Behaviour {
 			case Moving:
-				// if orderHere(OrderMatrix, state.Floor) || state.Floor == 0 || state.Floor == configuration.NumFloors-1 {
 				if shouldStopAtFloor(OrderMatrix, state.Floor, state.Direction) {
 					elevio.SetMotorDirection(elevio.MD_Stop)
 					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 					resetTimerChannel <- true
 					state.Behaviour = DoorOpen
-					fmt.Println("New local state:", state)
 				}
 			default:
 			}
 		case OrderMatrix = <-newOrderChannel:
-			fmt.Println("New orders :)")
 			switch state.Behaviour {
 			case Idle:
 				state.Behaviour = Moving
@@ -198,11 +186,3 @@ func SingleElevator(
 		elevatorStateChannel <- state
 	}
 }
-
-/*
-where to update when elevator is unavailable?
-initialization of elevator. go down to nearest floor.- hva har andre gjort?
-default/panic bør det implementeres over alt?
-doesnt know its in between two floors when stopping in between two floors
-printer new orders selv om vi ikke har noen orders?
-*/

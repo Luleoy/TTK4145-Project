@@ -190,7 +190,6 @@ func toBool(a byte) bool {
 	return b
 }
 
-// Egendefinerte funksjoner
 func DirToString(dir MotorDirection) string {
 	switch dir {
 	case MD_Up:
@@ -199,18 +198,6 @@ func DirToString(dir MotorDirection) string {
 		return "down"
 	case MD_Stop:
 		return "stop"
-	}
-	return "unknown"
-}
-
-func ButtonToString(button ButtonType) string {
-	switch button {
-	case BT_HallUp:
-		return "hall_up"
-	case BT_HallDown:
-		return "hall_down"
-	case BT_Cab:
-		return "cab"
 	}
 	return "unknown"
 }
