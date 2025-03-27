@@ -44,7 +44,7 @@ func WorldViewManager(
 
 	var PreviousOrderMatrix singleElevator.Orders
 
-	sendwvtoself := time.NewTimer(500*time.Millisecond)
+	sendwvtoself := time.NewTimer(500 * time.Millisecond)
 
 	for {
 		select {
@@ -72,7 +72,7 @@ func WorldViewManager(
 			if !validateWorldView(newLocalWorldView) {
 				continue
 			}
-			
+
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
 			setLights(*localWorldView)
@@ -122,14 +122,13 @@ func WorldViewManager(
 					}
 				}
 			}
-		case <- sendwvtoself.C:
+		case <-sendwvtoself.C:
 			if len(IDsAliveElevators) <= 1 {
 				fmt.Println("Sending world view to our selves")
 				WorldViewRXChannel <- *localWorldView
 			}
-			sendwvtoself.Reset(100*time.Millisecond)
+			sendwvtoself.Reset(100 * time.Millisecond)
 		}
-		// fmt.Println("loop")
 		setLights(*localWorldView)
 	}
 }

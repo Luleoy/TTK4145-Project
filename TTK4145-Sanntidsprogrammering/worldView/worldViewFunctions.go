@@ -302,31 +302,28 @@ func mergeOrders(localOrder *configuration.OrderMessage, receivedOrder configura
 		}
 	}
 	if updatedLocalOrder.StateofOrder == configuration.UnConfirmed { //Handling of barrier condition from StateofOrder Unconfirmed to Confirmed
-		allAcknowledged := true
-		for _, id := range IDsAliveElevators {
-			if !updatedLocalOrder.AckList[id] {
-				allAcknowledged = false
-				break
-			}
-		}
-		if allAcknowledged {
+		if checkingAllIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
 			updatedLocalOrder.StateofOrder = configuration.Confirmed
 			resetAckList(localWorldView)
 		}
 	} else if updatedLocalOrder.StateofOrder == configuration.Completed { ////Handling of barrier condition from StateofOrder Completed to None
-		allAcknowledged := true
-		for _, id := range IDsAliveElevators {
-			if !updatedLocalOrder.AckList[id] {
-				allAcknowledged = false
-				break
-			}
-		}
-		if allAcknowledged {
+		if checkingAllIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
 			updatedLocalOrder.StateofOrder = configuration.None
 			resetAckList(localWorldView)
 		}
 	}
 	return updatedLocalOrder
+}
+
+func checkingAllIDsAcknowledged(IDsAliveElevators []string, localOrder *configuration.OrderMessage) bool {
+	allAcknowledged := true
+	for _, id := range IDsAliveElevators {
+		if !localOrder.AckList[id] {
+			allAcknowledged = false
+			break
+		}
+	}
+	return allAcknowledged
 }
 
 func updateLastChanged(localWorldView WorldView, receivedWorldView WorldView, currentLastChanged map[string]time.Time) map[string]time.Time {

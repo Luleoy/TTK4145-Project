@@ -85,6 +85,8 @@ func SingleElevatorFsm(
 		}
 	}
 
+	// createWatchDog ...
+
 	for {
 		select {
 		case <-timerOutChannel: //Handles doortimeout: either closes the door or resets the timer

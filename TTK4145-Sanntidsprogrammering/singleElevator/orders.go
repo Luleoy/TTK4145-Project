@@ -111,26 +111,6 @@ func orderCompletedatCurrentFloor(floor int, direction Direction, completedOrder
 	}
 }
 
-/*
-order manager for single elevator
-func OrderManager(newOrderChannel chan<- Orders,
-	completedOrderChannel <-chan elevio.ButtonEvent, //sende-kanal
-	buttonPressedChannel <-chan elevio.ButtonEvent) { //kun lesing av kanal
-	OrderMatrix := [configuration.NumFloors][configuration.NumButtons]bool{}
-	for {
-		select {
-		case buttonPressed := <-buttonPressedChannel:
-			OrderMatrix[buttonPressed.Floor][buttonPressed.Button] = true
-			SetLights(OrderMatrix)
-			newOrderChannel <- OrderMatrix
-		case ordercompletedbyfsm := <-completedOrderChannel:
-			OrderMatrix[ordercompletedbyfsm.Floor][ordercompletedbyfsm.Button] = false
-			SetLights(OrderMatrix)
-			newOrderChannel <- OrderMatrix
-		}
-	}
-}*/
-
 func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) DirectionBehaviourPair {
 	switch direction {
 	case Up:
