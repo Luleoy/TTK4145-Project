@@ -34,7 +34,7 @@ func initializeCabOrderStatus() []configuration.OrderMessage {
 }
 
 func initializeWorldView(elevatorID string) WorldView {
-	wv := WorldView{
+	worldView := WorldView{
 		ID:                 elevatorID,
 		ElevatorStatusList: make(map[string]ElevStateMessage),
 		HallOrderStatus:    initializeHallOrderStatus(),
@@ -43,8 +43,8 @@ func initializeWorldView(elevatorID string) WorldView {
 		Elev: singleElevator.Elevator{},
 		Cab:  initializeCabOrderStatus(),
 	}
-	wv.ElevatorStatusList[elevatorID] = elevatorState
-	return wv
+	worldView.ElevatorStatusList[elevatorID] = elevatorState
+	return worldView
 }
 
 func DetermineInitialDirection(WorldViewRXChannel <-chan WorldView, elevatorID string) elevio.MotorDirection {
@@ -58,7 +58,7 @@ func DetermineInitialDirection(WorldViewRXChannel <-chan WorldView, elevatorID s
 		}
 	case <-time.After(100 * time.Millisecond):
 	}
-	return elevio.MD_Down // Standard retning ved timeout
+	return elevio.MD_Down
 }
 
 func updateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEvent, isNewOrder bool) WorldView {
@@ -214,8 +214,6 @@ func assignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][
 
 func mergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	MergedWorldView := *localWorldView
-
-	//TOR -review det Nils har sendt
 	if _, exists := localWorldView.ElevatorStatusList[receivedWorldView.ID]; exists {
 		currentElevState := localWorldView.ElevatorStatusList[receivedWorldView.ID]
 		currentElevState.Elev = receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev
@@ -223,7 +221,6 @@ func mergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	} else {
 		localWorldView.ElevatorStatusList[receivedWorldView.ID] = receivedWorldView.ElevatorStatusList[receivedWorldView.ID]
 	}
-
 	for floor := range localWorldView.HallOrderStatus {
 		for button := range localWorldView.HallOrderStatus[floor] {
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
@@ -232,22 +229,17 @@ func mergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
 		}
 	}
-
 	for id, elevState := range receivedWorldView.ElevatorStatusList {
 		_, localElevStateExists := localWorldView.ElevatorStatusList[id]
-
 		if !localElevStateExists {
 			localWorldView.ElevatorStatusList[id] = elevState
 		} else {
-
 			for floor := range elevState.Cab {
 				localCabOrder := &localWorldView.ElevatorStatusList[id].Cab[floor]
 				receivedOrder := receivedWorldView.ElevatorStatusList[id].Cab[floor]
-
 				if localCabOrder.AckList == nil {
 					localCabOrder.AckList = make(map[string]bool)
 				}
-
 				CabOrderMerged := mergeOrders(localCabOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 				MergedWorldView.ElevatorStatusList[id].Cab[floor] = CabOrderMerged
 			}
@@ -302,12 +294,12 @@ func mergeOrders(localOrder *configuration.OrderMessage, receivedOrder configura
 		}
 	}
 	if updatedLocalOrder.StateofOrder == configuration.UnConfirmed { //Handling of barrier condition from StateofOrder Unconfirmed to Confirmed
-		if checkingAllIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
+		if allIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
 			updatedLocalOrder.StateofOrder = configuration.Confirmed
 			resetAckList(localWorldView)
 		}
-	} else if updatedLocalOrder.StateofOrder == configuration.Completed { ////Handling of barrier condition from StateofOrder Completed to None
-		if checkingAllIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
+	} else if updatedLocalOrder.StateofOrder == configuration.Completed { //Handling of barrier condition from StateofOrder Completed to None
+		if allIDsAcknowledged(IDsAliveElevators, &updatedLocalOrder) {
 			updatedLocalOrder.StateofOrder = configuration.None
 			resetAckList(localWorldView)
 		}
@@ -315,7 +307,7 @@ func mergeOrders(localOrder *configuration.OrderMessage, receivedOrder configura
 	return updatedLocalOrder
 }
 
-func checkingAllIDsAcknowledged(IDsAliveElevators []string, localOrder *configuration.OrderMessage) bool {
+func allIDsAcknowledged(IDsAliveElevators []string, localOrder *configuration.OrderMessage) bool {
 	allAcknowledged := true
 	for _, id := range IDsAliveElevators {
 		if !localOrder.AckList[id] {
@@ -331,7 +323,6 @@ func updateLastChanged(localWorldView WorldView, receivedWorldView WorldView, cu
 	for id, val := range currentLastChanged {
 		newLastChanged[id] = val
 	}
-
 	if _, exists := newLastChanged[receivedWorldView.ID]; !exists {
 		newLastChanged[receivedWorldView.ID] = time.Now()
 	} else if localWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour != receivedWorldView.ElevatorStatusList[receivedWorldView.ID].Elev.Behaviour ||

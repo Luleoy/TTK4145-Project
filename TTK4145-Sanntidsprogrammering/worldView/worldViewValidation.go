@@ -57,7 +57,7 @@ func validateElevatorStateMsg(id string, elevStateMsg ElevStateMessage) bool {
 
 func validateOrder(order configuration.OrderMessage) bool {
 	if order.AckList == nil {
-		fmt.Println("Validation failed: Order AckList is nil")
+		fmt.Println("Validation failed: AckList is nil")
 		return false
 	}
 	return true

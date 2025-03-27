@@ -3,7 +3,6 @@ package singleElevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
-	"fmt"
 	"time"
 )
 
@@ -59,6 +58,7 @@ func SingleElevatorFsm(
 	elevatorStateChannel chan<- Elevator,
 	initDirection elevio.MotorDirection,
 ) {
+	//Initializing elevator
 	var state Elevator
 	elevio.SetMotorDirection(initDirection)
 	closestFloor := findClosestFloor()
@@ -69,11 +69,11 @@ func SingleElevatorFsm(
 	floorEnteredChannel := make(chan int)
 	obstructedChannel := make(chan bool, 16)
 	stopPressedChannel := make(chan bool, 16)
-	timerOutChannel := make(chan bool)
+	doorTimerOutChannel := make(chan bool)
 	resetTimerChannel := make(chan bool)
 
 	go elevio.PollFloorSensor(floorEnteredChannel)
-	go runTimer(configuration.DoorOpenDuration, timerOutChannel, resetTimerChannel)
+	go runTimer(configuration.DoorOpenDuration, doorTimerOutChannel, resetTimerChannel)
 	go elevio.PollObstructionSwitch(obstructedChannel)
 	go elevio.PollStopButton(stopPressedChannel)
 
@@ -85,11 +85,9 @@ func SingleElevatorFsm(
 		}
 	}
 
-	// createWatchDog ...
-
 	for {
 		select {
-		case <-timerOutChannel: //Handles doortimeout: either closes the door or resets the timer
+		case <-doorTimerOutChannel:
 			switch state.Behaviour {
 			case DoorOpen:
 				if state.Obstructed {
@@ -108,7 +106,7 @@ func SingleElevatorFsm(
 					}
 				}
 			case Moving:
-				panic("Timeroutchannel while in Moving")
+				panic("DoorTimerOutChannel while in Moving")
 			}
 		case stopbuttonpressed := <-stopPressedChannel:
 			if stopbuttonpressed {
@@ -141,7 +139,6 @@ func SingleElevatorFsm(
 			default:
 			}
 		case OrderMatrix = <-newOrderChannel:
-			fmt.Println("Got new orders")
 			switch state.Behaviour {
 			case Idle:
 				state.Behaviour = Moving
