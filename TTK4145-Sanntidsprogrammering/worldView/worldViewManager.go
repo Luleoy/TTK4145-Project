@@ -4,7 +4,9 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/singleElevator"
+	"fmt"
 	"reflect"
+	"slices"
 	"time"
 )
 
@@ -22,7 +24,7 @@ type WorldView struct {
 func WorldViewManager(
 	elevatorID string,
 	WorldViewTXChannel chan<- WorldView,
-	WorldViewRXChannel <-chan WorldView,
+	WorldViewRXChannel chan WorldView,
 	buttonPressedChannel <-chan elevio.ButtonEvent,
 	newOrderChannel chan<- singleElevator.Orders,
 	completedOrderChannel <-chan elevio.ButtonEvent,
@@ -42,10 +44,15 @@ func WorldViewManager(
 
 	var PreviousOrderMatrix singleElevator.Orders
 
+	sendwvtoself := time.NewTimer(500*time.Millisecond)
+
 	for {
 		select {
 		case IDList := <-IDPeersChannel:
 			IDsAliveElevators = IDList
+			if !slices.Contains(IDsAliveElevators, elevatorID) {
+				IDsAliveElevators = append(IDsAliveElevators, elevatorID)
+			}
 
 		case <-SendLocalWorldViewTimer.C: //Periodically broadcasts the elevators WorldView (every SendWVTimer) to synchronize elevator states across the network
 			localWorldView.ID = elevatorID
@@ -65,6 +72,7 @@ func WorldViewManager(
 			if !validateWorldView(newLocalWorldView) {
 				continue
 			}
+			
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
 			setLights(*localWorldView)
@@ -79,6 +87,7 @@ func WorldViewManager(
 			setLights(*localWorldView)
 
 		case receivedWorldView := <-WorldViewRXChannel:
+			// fmt.Println("Recieved ww")
 			lastChanged = updateLastChanged(*localWorldView, receivedWorldView, lastChanged)
 			IDsAvailableForAssignment := []string{elevatorID}
 			for _, id := range IDsAliveElevators {
@@ -88,6 +97,7 @@ func WorldViewManager(
 					}
 				}
 			}
+
 			newLocalWorldView := mergeWorldViews(localWorldView, receivedWorldView, IDsAvailableForAssignment)
 			if !validateWorldView(newLocalWorldView) {
 				continue
@@ -102,6 +112,7 @@ func WorldViewManager(
 			OurCab := getCAB(*localWorldView, localWorldView.ID)
 			OrderMatrix := mergeCABandHRAOutput(OurHall, OurCab)
 			if OrderMatrix != PreviousOrderMatrix {
+				fmt.Println("sending new orders: ", OrderMatrix)
 				newOrderChannel <- OrderMatrix
 				PreviousOrderMatrix = OrderMatrix
 				anyOrders := false
@@ -111,7 +122,14 @@ func WorldViewManager(
 					}
 				}
 			}
+		case <- sendwvtoself.C:
+			if len(IDsAliveElevators) <= 1 {
+				fmt.Println("Sending world view to our selves")
+				WorldViewRXChannel <- *localWorldView
+			}
+			sendwvtoself.Reset(100*time.Millisecond)
 		}
+		// fmt.Println("loop")
 		setLights(*localWorldView)
 	}
 }

@@ -3,6 +3,7 @@ package singleElevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
+	"fmt"
 	"time"
 )
 
@@ -138,6 +139,7 @@ func SingleElevatorFsm(
 			default:
 			}
 		case OrderMatrix = <-newOrderChannel:
+			fmt.Println("Got new orders")
 			switch state.Behaviour {
 			case Idle:
 				state.Behaviour = Moving
