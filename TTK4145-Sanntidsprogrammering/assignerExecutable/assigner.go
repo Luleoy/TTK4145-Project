@@ -36,7 +36,7 @@ func Assigner(input HRAInput) map[string][][2]bool {
 		panic(err)
 	}
 
-	ret, err := exec.Command("AssignerExecutable/executables/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
+	ret, err := exec.Command("assignerExecutable/executables/"+hraExecutable, "-i", string(jsonBytes)).CombinedOutput()
 	if err != nil {
 		fmt.Println("exec.Command error: ", err)
 		fmt.Println(string(ret))
