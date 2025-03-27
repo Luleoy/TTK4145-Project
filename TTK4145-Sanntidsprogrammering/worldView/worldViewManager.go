@@ -4,7 +4,6 @@ import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/singleElevator"
-	"fmt"
 	"reflect"
 	"slices"
 	"time"
@@ -119,7 +118,6 @@ func WorldViewManager(
 			}
 		case <-sendWorldViewtoSelf.C:
 			if len(IDsAliveElevators) <= 1 {
-				fmt.Println("Sending WorldView to ourselves")
 				WorldViewRXChannel <- *localWorldView
 			}
 			sendWorldViewtoSelf.Reset(100 * time.Millisecond)
