@@ -8,7 +8,7 @@ import (
 
 type Orders [configuration.NumFloors][configuration.NumButtons]bool
 
-type directionBehaviourPair struct {
+type DirectionBehaviourPair struct {
 	Direction elevio.MotorDirection
 	Behaviour Behaviour
 }
@@ -131,40 +131,40 @@ func OrderManager(newOrderChannel chan<- Orders,
 	}
 }*/
 
-func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) directionBehaviourPair {
+func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) DirectionBehaviourPair {
 	switch direction {
 	case Up:
 		if hasOrdersAbove(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Up, Moving}
+			return DirectionBehaviourPair{elevio.MD_Up, Moving}
 		} else if hasOrderAtFloor(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Down, DoorOpen}
+			return DirectionBehaviourPair{elevio.MD_Down, DoorOpen}
 		} else if hasOrdersBelow(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Down, Moving}
+			return DirectionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
-			return directionBehaviourPair{elevio.MD_Stop, Idle}
+			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Down:
 		if hasOrdersBelow(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Down, Moving}
+			return DirectionBehaviourPair{elevio.MD_Down, Moving}
 		} else if hasOrderAtFloor(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Up, DoorOpen}
+			return DirectionBehaviourPair{elevio.MD_Up, DoorOpen}
 		} else if hasOrdersAbove(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Up, Moving}
+			return DirectionBehaviourPair{elevio.MD_Up, Moving}
 		} else {
-			return directionBehaviourPair{elevio.MD_Stop, Idle}
+			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Stop:
 		if hasOrderAtFloor(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Stop, DoorOpen}
+			return DirectionBehaviourPair{elevio.MD_Stop, DoorOpen}
 		} else if hasOrdersAbove(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Up, Moving}
+			return DirectionBehaviourPair{elevio.MD_Up, Moving}
 		} else if hasOrdersBelow(OrderMatrix, floor) {
-			return directionBehaviourPair{elevio.MD_Down, Moving}
+			return DirectionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
-			return directionBehaviourPair{elevio.MD_Stop, Idle}
+			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	default:
-		return directionBehaviourPair{elevio.MD_Stop, Idle}
+		return DirectionBehaviourPair{elevio.MD_Stop, Idle}
 	}
 }
 
