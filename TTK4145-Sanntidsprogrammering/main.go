@@ -30,8 +30,6 @@ func main() {
 	elevatorStateChannel := make(chan singleElevator.Elevator, configuration.Buffer)
 	elevatorTimeoutTimer := time.NewTimer(5 * time.Second)
 
-	go elevio.PollButtons(buttonPressedChannel)
-
 	go bcast.Transmitter(configuration.BroadcastPort, WorldViewTXChannel)
 	go bcast.Receiver(configuration.BroadcastPort, WorldViewRXChannel)
 
@@ -39,6 +37,7 @@ func main() {
 	go peers.Transmitter(configuration.PeersPort, elevatorID, enableTransmit)
 	go peers.Receiver(configuration.PeersPort, peerUpdateChannel)
 
+	go elevio.PollButtons(buttonPressedChannel)
 	initDirection := worldView.DetermineInitialDirection(WorldViewRXChannel, elevatorID)
 	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel, initDirection)
 	go peerTracker.TrackActivePeers(elevatorID, peerUpdateChannel, IDPeersChannel)
