@@ -8,15 +8,15 @@ import (
 	"time"
 )
 
-type ElevStateMsg struct {
+type ElevStateMessage struct {
 	Elev singleElevator.Elevator
-	Cab  []configuration.OrderMsg
+	Cab  []configuration.OrderMessage
 }
 
 type WorldView struct {
 	ID                 string
-	ElevatorStatusList map[string]ElevStateMsg
-	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMsg
+	ElevatorStatusList map[string]ElevStateMessage
+	HallOrderStatus    [][configuration.NumButtons - 1]configuration.OrderMessage
 }
 
 func WorldViewManager(

@@ -34,8 +34,7 @@ func BehaviourToString(behaviour Behaviour) string {
 	}
 }
 
-// ALLE FUNSKJONER NILS HAR MED MÅ HA STOR FORBOKSTAV
-func runTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChannel <-chan bool) {
+func RunTimer(duration time.Duration, timeOutChannel chan<- bool, resetTimerChannel <-chan bool) {
 	deadline := time.Now().Add(100000 * time.Hour)
 	is_running := false
 	for {
@@ -58,6 +57,11 @@ func SingleElevatorFsm(
 	completedOrderChannel chan<- elevio.ButtonEvent,
 	elevatorStateChannel chan<- Elevator,
 	initDirection elevio.MotorDirection,
+	timerOutChannel <-chan bool,
+	resetTimerChannel chan<- bool,
+	stopPressedChannel <-chan bool,
+	obstructedChannel <-chan bool,
+	floorEnteredChannel <-chan int,
 ) {
 	var state Elevator
 	elevio.SetMotorDirection(initDirection)
@@ -66,19 +70,19 @@ func SingleElevatorFsm(
 	state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
 	elevatorStateChannel <- state
 
-	floorEnteredChannel := make(chan int)
-	obstructedChannel := make(chan bool, 16)
-	stopPressedChannel := make(chan bool, 16)
+	//floorEnteredChannel := make(chan int)
+	//obstructedChannel := make(chan bool, 16)
+	//stopPressedChannel := make(chan bool, 16)
 
 	//FLYTTE INITIALISERING AV GO-ROUTINER TIL MAIN
-	go elevio.PollFloorSensor(floorEnteredChannel)
+	//go elevio.PollFloorSensor(floorEnteredChannel)
 
-	timerOutChannel := make(chan bool)
-	resetTimerChannel := make(chan bool)
-	go runTimer(configuration.DoorOpenDuration, timerOutChannel, resetTimerChannel)
+	//timerOutChannel := make(chan bool)
+	//resetTimerChannel := make(chan bool)
+	//go runTimer(configuration.DoorOpenDuration, timerOutChannel, resetTimerChannel)
 
-	go elevio.PollObstructionSwitch(obstructedChannel)
-	go elevio.PollStopButton(stopPressedChannel)
+	//go elevio.PollObstructionSwitch(obstructedChannel)
+	//go elevio.PollStopButton(stopPressedChannel)
 
 	var OrderMatrix Orders
 

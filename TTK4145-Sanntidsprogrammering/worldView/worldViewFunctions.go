@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-func initializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
-	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderMsg, configuration.NumFloors)
+func initializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMessage {
+	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderMessage, configuration.NumFloors)
 	for floor := range HallOrderStatus {
 		for button := range HallOrderStatus[floor] {
-			HallOrderStatus[floor][button] = configuration.OrderMsg{
+			HallOrderStatus[floor][button] = configuration.OrderMessage{
 				StateofOrder: configuration.None,
 				AckList:      make(map[string]bool),
 			}
@@ -22,10 +22,10 @@ func initializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.O
 	return HallOrderStatus
 }
 
-func initializeCabOrderStatus() []configuration.OrderMsg {
-	CabOrders := make([]configuration.OrderMsg, configuration.NumFloors)
+func initializeCabOrderStatus() []configuration.OrderMessage {
+	CabOrders := make([]configuration.OrderMessage, configuration.NumFloors)
 	for floor := range CabOrders {
-		CabOrders[floor] = configuration.OrderMsg{
+		CabOrders[floor] = configuration.OrderMessage{
 			StateofOrder: configuration.None,
 			AckList:      make(map[string]bool),
 		}
@@ -36,10 +36,10 @@ func initializeCabOrderStatus() []configuration.OrderMsg {
 func initializeWorldView(elevatorID string) WorldView {
 	wv := WorldView{
 		ID:                 elevatorID,
-		ElevatorStatusList: make(map[string]ElevStateMsg),
+		ElevatorStatusList: make(map[string]ElevStateMessage),
 		HallOrderStatus:    initializeHallOrderStatus(),
 	}
-	elevatorState := ElevStateMsg{
+	elevatorState := ElevStateMessage{
 		Elev: singleElevator.Elevator{},
 		Cab:  initializeCabOrderStatus(),
 	}
@@ -67,7 +67,7 @@ func updateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEv
 		switch button.Button {
 		case elevio.BT_HallUp, elevio.BT_HallDown:
 			if updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button].StateofOrder == configuration.None {
-				updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button] = configuration.OrderMsg{
+				updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button] = configuration.OrderMessage{
 					StateofOrder: configuration.UnConfirmed,
 					AckList:      make(map[string]bool),
 				}
@@ -77,7 +77,7 @@ func updateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEv
 			}
 		case elevio.BT_Cab:
 			if updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor].StateofOrder == configuration.None {
-				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor] = configuration.OrderMsg{
+				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor] = configuration.OrderMessage{
 					StateofOrder: configuration.UnConfirmed,
 					AckList:      make(map[string]bool),
 				}
@@ -256,7 +256,7 @@ func mergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	return MergedWorldView
 }
 
-func mergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+func mergeOrders(localOrder *configuration.OrderMessage, receivedOrder configuration.OrderMessage, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMessage {
 	updatedLocalOrder := *localOrder
 	if updatedLocalOrder.AckList == nil {
 		updatedLocalOrder.AckList = make(map[string]bool)

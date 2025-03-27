@@ -37,7 +37,7 @@ func validateWorldView(wv WorldView) bool {
 	return true
 }
 
-func validateElevatorStateMsg(id string, elevStateMsg ElevStateMsg) bool {
+func validateElevatorStateMsg(id string, elevStateMsg ElevStateMessage) bool {
 	if elevStateMsg.Cab == nil || len(elevStateMsg.Cab) != configuration.NumFloors {
 		fmt.Printf("Validation failed: CabRequests not properly initialized for elevator %s\n", id)
 		return false
@@ -55,7 +55,7 @@ func validateElevatorStateMsg(id string, elevStateMsg ElevStateMsg) bool {
 	return true
 }
 
-func validateOrder(order configuration.OrderMsg) bool {
+func validateOrder(order configuration.OrderMessage) bool {
 	if order.AckList == nil {
 		fmt.Println("Validation failed: Order AckList is nil")
 		return false

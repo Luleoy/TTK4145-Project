@@ -29,6 +29,16 @@ func main() {
 	peerUpdateChannel := make(chan peers.PeerUpdate)
 	elevatorStateChannel := make(chan singleElevator.Elevator, configuration.Buffer)
 	elevatorTimeoutTimer := time.NewTimer(5 * time.Second)
+	floorEnteredChannel := make(chan int, configuration.Buffer)
+	obstructedChannel := make(chan bool, configuration.Buffer)
+	stopPressedChannel := make(chan bool, configuration.Buffer)
+	timerOutChannel := make(chan bool, configuration.Buffer)
+	resetTimerChannel := make(chan bool, configuration.Buffer)
+
+	go elevio.PollFloorSensor(floorEnteredChannel)
+	go elevio.PollButtons(buttonPressedChannel)
+	go elevio.PollObstructionSwitch(obstructedChannel)
+	go elevio.PollStopButton(stopPressedChannel)
 
 	go bcast.Transmitter(configuration.BroadcastPort, WorldViewTXChannel)
 	go bcast.Receiver(configuration.BroadcastPort, WorldViewRXChannel)
@@ -37,9 +47,9 @@ func main() {
 	go peers.Transmitter(configuration.PeersPort, elevatorID, enableTransmit)
 	go peers.Receiver(configuration.PeersPort, peerUpdateChannel)
 
-	go elevio.PollButtons(buttonPressedChannel)
+	go singleElevator.RunTimer(configuration.DoorOpenDuration, timerOutChannel, resetTimerChannel)
 	initDirection := worldView.DetermineInitialDirection(WorldViewRXChannel, elevatorID)
-	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel, initDirection)
+	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel, initDirection, timerOutChannel, resetTimerChannel, stopPressedChannel, obstructedChannel, floorEnteredChannel)
 	go peerTracker.TrackActivePeers(elevatorID, peerUpdateChannel, IDPeersChannel)
 	go worldView.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel, elevatorTimeoutTimer)
 

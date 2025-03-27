@@ -27,7 +27,7 @@ const (
 	Completed
 )
 
-type OrderMsg struct {
+type OrderMessage struct {
 	StateofOrder OrderState
 	AckList      map[string]bool
 }
