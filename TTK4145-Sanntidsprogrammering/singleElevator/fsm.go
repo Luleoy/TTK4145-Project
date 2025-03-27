@@ -58,35 +58,45 @@ func SingleElevatorFsm(
 	newOrderChannel <-chan Orders,
 	completedOrderChannel chan<- elevio.ButtonEvent,
 	elevatorStateChannel chan<- Elevator,
+	initDirection elevio.MotorDirection,
 ) {
-
+	//Initialization of elevator
+	fmt.Println("setting motor in init direction or down")
 	var state Elevator
-	currentFloor := elevio.GetFloor()
+	elevio.SetMotorDirection(initDirection)
+	closestFloor := findClosestFloor()
+	elevio.SetMotorDirection(elevio.MD_Stop)
+	state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+	elevatorStateChannel <- state
+	/*
+		var state Elevator
+		currentFloor := elevio.GetFloor()
 
-	//DETTE MÅ LEGGES INN I EN FUNSKJON
-	//initialisering av single elevator
-	if currentFloor != -1 {
-		fmt.Println("Heis starter i etasje", currentFloor)
-		if currentFloor == 0 {
-			elevio.SetMotorDirection(elevio.MD_Up)
+
+		//DETTE MÅ LEGGES INN I EN FUNSKJON
+		//initialisering av single elevator
+		if currentFloor != -1 {
+			fmt.Println("Heis starter i etasje", currentFloor)
+			if currentFloor == 0 {
+				elevio.SetMotorDirection(elevio.MD_Up)
+			} else {
+				elevio.SetMotorDirection(elevio.MD_Down)
+			}
+			// Vent til heisen forlater nåværende etasje
+			for elevio.GetFloor() != -1 {
+				time.Sleep(100 * time.Millisecond)
+			}
+			closestFloor := findClosestFloor()
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+
 		} else {
+			fmt.Println("Heis starter mellom etasjer")
 			elevio.SetMotorDirection(elevio.MD_Down)
-		}
-		// Vent til heisen forlater nåværende etasje
-		for elevio.GetFloor() != -1 {
-			time.Sleep(100 * time.Millisecond)
-		}
-		closestFloor := findClosestFloor()
-		elevio.SetMotorDirection(elevio.MD_Stop)
-		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
-
-	} else {
-		fmt.Println("Heis starter mellom etasjer")
-		elevio.SetMotorDirection(elevio.MD_Down)
-		closestFloor := findClosestFloor()
-		elevio.SetMotorDirection(elevio.MD_Stop)
-		state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
-	}
+			closestFloor := findClosestFloor()
+			elevio.SetMotorDirection(elevio.MD_Stop)
+			state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
+		} */
 
 	floorEnteredChannel := make(chan int)
 	obstructedChannel := make(chan bool, 16)
@@ -104,6 +114,12 @@ func SingleElevatorFsm(
 	go elevio.PollStopButton(stopPressedChannel)
 
 	var OrderMatrix Orders
+
+	for i := 0; i < configuration.NumFloors; i++ {
+		for j := 0; j < configuration.NumButtons; j++ {
+			OrderMatrix[i][j] = false
+		}
+	}
 
 	for {
 		select {

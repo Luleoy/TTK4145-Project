@@ -38,7 +38,8 @@ func main() {
 	go peers.Receiver(configuration.PeersPort, peerUpdateChannel)
 
 	go elevio.PollButtons(buttonPressedChannel)
-	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel)
+	initDirection := worldView.DetermineInitialDirection(WorldViewRXChannel, elevatorID)
+	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel, initDirection)
 	go peerTracker.TrackActivePeers(elevatorID, peerUpdateChannel, IDPeersChannel)
 	go worldView.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel, elevatorTimeoutTimer)
 

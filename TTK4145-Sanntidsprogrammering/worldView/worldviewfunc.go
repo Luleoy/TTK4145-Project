@@ -47,6 +47,20 @@ func InitializeWorldView(elevatorID string) WorldView {
 	return wv
 }
 
+func DetermineInitialDirection(WorldViewRXChannel <-chan WorldView, elevatorID string) elevio.MotorDirection {
+	select {
+	case worldView := <-WorldViewRXChannel:
+		if status, exists := worldView.ElevatorStatusList[elevatorID]; exists {
+			if status.Elev.Direction == singleElevator.Down {
+				return elevio.MD_Down
+			}
+			return elevio.MD_Up
+		}
+	case <-time.After(100 * time.Millisecond):
+	}
+	return elevio.MD_Down // Standard retning ved timeout
+}
+
 func UpdateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEvent, isNewOrder bool) WorldView {
 	updatedLocalWorldView := *localWorldView
 	if isNewOrder { //Updating order from StateofOrder None to Unconfirmed (received new button press)
