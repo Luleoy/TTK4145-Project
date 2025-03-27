@@ -3,7 +3,6 @@ package singleElevator
 import (
 	"TTK4145-Heislab/configuration"
 	"TTK4145-Heislab/driver-go/elevio"
-	"fmt"
 	"time"
 )
 
@@ -60,43 +59,12 @@ func SingleElevatorFsm(
 	elevatorStateChannel chan<- Elevator,
 	initDirection elevio.MotorDirection,
 ) {
-	//Initialization of elevator
-	fmt.Println("setting motor in init direction or down")
 	var state Elevator
 	elevio.SetMotorDirection(initDirection)
 	closestFloor := findClosestFloor()
 	elevio.SetMotorDirection(elevio.MD_Stop)
 	state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
 	elevatorStateChannel <- state
-	/*
-		var state Elevator
-		currentFloor := elevio.GetFloor()
-
-
-		//DETTE MÅ LEGGES INN I EN FUNSKJON
-		//initialisering av single elevator
-		if currentFloor != -1 {
-			fmt.Println("Heis starter i etasje", currentFloor)
-			if currentFloor == 0 {
-				elevio.SetMotorDirection(elevio.MD_Up)
-			} else {
-				elevio.SetMotorDirection(elevio.MD_Down)
-			}
-			// Vent til heisen forlater nåværende etasje
-			for elevio.GetFloor() != -1 {
-				time.Sleep(100 * time.Millisecond)
-			}
-			closestFloor := findClosestFloor()
-			elevio.SetMotorDirection(elevio.MD_Stop)
-			state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
-
-		} else {
-			fmt.Println("Heis starter mellom etasjer")
-			elevio.SetMotorDirection(elevio.MD_Down)
-			closestFloor := findClosestFloor()
-			elevio.SetMotorDirection(elevio.MD_Stop)
-			state = Elevator{Floor: closestFloor, Behaviour: Idle, Direction: elevio.MD_Stop}
-		} */
 
 	floorEnteredChannel := make(chan int)
 	obstructedChannel := make(chan bool, 16)
@@ -108,7 +76,6 @@ func SingleElevatorFsm(
 	timerOutChannel := make(chan bool)
 	resetTimerChannel := make(chan bool)
 	go runTimer(configuration.DoorOpenDuration, timerOutChannel, resetTimerChannel)
-	// go startTimer(configuration.DoorOpenDuration, timerOutChannel)
 
 	go elevio.PollObstructionSwitch(obstructedChannel)
 	go elevio.PollStopButton(stopPressedChannel)
@@ -126,16 +93,20 @@ func SingleElevatorFsm(
 		case <-timerOutChannel: //Handles doortimeout: either closes the door or resets the timer
 			switch state.Behaviour {
 			case DoorOpen:
-				DirectionBehaviourPair := ordersChooseDirection(state.Floor, state.Direction, OrderMatrix)
-				state.Behaviour = DirectionBehaviourPair.Behaviour
-				state.Direction = Direction(DirectionBehaviourPair.Direction)
-				switch state.Behaviour {
-				case DoorOpen:
+				if state.Obstructed {
 					resetTimerChannel <- true
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
-				case Moving, Idle:
-					elevio.SetDoorOpenLamp(false)
-					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
+				} else {
+					DirectionBehaviourPair := ordersChooseDirection(state.Floor, state.Direction, OrderMatrix)
+					state.Behaviour = DirectionBehaviourPair.Behaviour
+					state.Direction = Direction(DirectionBehaviourPair.Direction)
+					switch state.Behaviour {
+					case DoorOpen:
+						resetTimerChannel <- true
+						orderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
+					case Moving, Idle:
+						elevio.SetDoorOpenLamp(false)
+						elevio.SetMotorDirection(DirectionBehaviourPair.Direction)
+					}
 				}
 			case Moving:
 				panic("Timeroutchannel while in Moving")
@@ -148,25 +119,14 @@ func SingleElevatorFsm(
 				elevio.SetStopLamp(false)
 			}
 		case obstruction := <-obstructedChannel:
+			state.Obstructed = obstruction
 			if obstruction {
-				state.Obstructed = true
-				state.Behaviour = DoorOpen
-				elevio.SetDoorOpenLamp(true)
-				resetTimerChannel <- true
-				for obstruction {
-					select {
-					case obstruction = <-obstructedChannel:
-						if !obstruction {
-							state.Obstructed = false
-							if state.Behaviour == DoorOpen {
-								resetTimerChannel <- true
-							}
-						}
-					default:
-						if state.Behaviour == DoorOpen {
-							resetTimerChannel <- true
-						}
-					}
+				if state.Behaviour == DoorOpen {
+					resetTimerChannel <- true
+				}
+			} else {
+				if state.Behaviour == DoorOpen {
+					resetTimerChannel <- true
 				}
 			}
 		case state.Floor = <-floorEnteredChannel:
@@ -175,7 +135,7 @@ func SingleElevatorFsm(
 			case Moving:
 				if shouldStopAtFloor(OrderMatrix, state.Floor, state.Direction) {
 					elevio.SetMotorDirection(elevio.MD_Stop)
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
+					orderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 					resetTimerChannel <- true
 					state.Behaviour = DoorOpen
 				}
@@ -191,7 +151,7 @@ func SingleElevatorFsm(
 				switch state.Behaviour {
 				case DoorOpen:
 					resetTimerChannel <- true
-					OrderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
+					orderCompletedatCurrentFloor(state.Floor, Direction(state.Direction.convertMD()), completedOrderChannel, OrderMatrix)
 				case Moving, Idle:
 					elevio.SetDoorOpenLamp(false)
 					elevio.SetMotorDirection(DirectionBehaviourPair.Direction)

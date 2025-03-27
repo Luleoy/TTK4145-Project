@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
+func initializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.OrderMsg {
 	HallOrderStatus := make([][configuration.NumButtons - 1]configuration.OrderMsg, configuration.NumFloors)
 	for floor := range HallOrderStatus {
 		for button := range HallOrderStatus[floor] {
@@ -22,7 +22,7 @@ func InitializeHallOrderStatus() [][configuration.NumButtons - 1]configuration.O
 	return HallOrderStatus
 }
 
-func InitializeCabOrderStatus() []configuration.OrderMsg {
+func initializeCabOrderStatus() []configuration.OrderMsg {
 	CabOrders := make([]configuration.OrderMsg, configuration.NumFloors)
 	for floor := range CabOrders {
 		CabOrders[floor] = configuration.OrderMsg{
@@ -33,15 +33,15 @@ func InitializeCabOrderStatus() []configuration.OrderMsg {
 	return CabOrders
 }
 
-func InitializeWorldView(elevatorID string) WorldView {
+func initializeWorldView(elevatorID string) WorldView {
 	wv := WorldView{
 		ID:                 elevatorID,
 		ElevatorStatusList: make(map[string]ElevStateMsg),
-		HallOrderStatus:    InitializeHallOrderStatus(),
+		HallOrderStatus:    initializeHallOrderStatus(),
 	}
 	elevatorState := ElevStateMsg{
 		Elev: singleElevator.Elevator{},
-		Cab:  InitializeCabOrderStatus(),
+		Cab:  initializeCabOrderStatus(),
 	}
 	wv.ElevatorStatusList[elevatorID] = elevatorState
 	return wv
@@ -61,7 +61,7 @@ func DetermineInitialDirection(WorldViewRXChannel <-chan WorldView, elevatorID s
 	return elevio.MD_Down // Standard retning ved timeout
 }
 
-func UpdateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEvent, isNewOrder bool) WorldView {
+func updateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEvent, isNewOrder bool) WorldView {
 	updatedLocalWorldView := *localWorldView
 	if isNewOrder { //Updating order from StateofOrder None to Unconfirmed (received new button press)
 		switch button.Button {
@@ -91,14 +91,14 @@ func UpdateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEv
 		case elevio.BT_HallUp, elevio.BT_HallDown:
 			if updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button].StateofOrder == configuration.Confirmed {
 				updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button].StateofOrder = configuration.Completed
-				ResetAckList(&updatedLocalWorldView)
+				resetAckList(&updatedLocalWorldView)
 			} else {
 				fmt.Println("Tried to clear button which was not confirmed: ", updatedLocalWorldView.HallOrderStatus[button.Floor][button.Button])
 			}
 		case elevio.BT_Cab:
 			if updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor].StateofOrder == configuration.Confirmed {
 				updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor].StateofOrder = configuration.Completed
-				ResetAckList(&updatedLocalWorldView)
+				resetAckList(&updatedLocalWorldView)
 			} else {
 				fmt.Println("Tried to clear button not confirmed: ", updatedLocalWorldView.ElevatorStatusList[updatedLocalWorldView.ID].Cab[button.Floor])
 			}
@@ -107,7 +107,7 @@ func UpdateWorldViewWithButton(localWorldView *WorldView, button elevio.ButtonEv
 	return updatedLocalWorldView
 }
 
-func ResetAckList(localWorldView *WorldView) {
+func resetAckList(localWorldView *WorldView) {
 	for floor := range localWorldView.HallOrderStatus {
 		for btn := range localWorldView.HallOrderStatus[floor] {
 			localWorldView.HallOrderStatus[floor][btn].AckList = make(map[string]bool)
@@ -122,7 +122,7 @@ func ResetAckList(localWorldView *WorldView) {
 	}
 }
 
-func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
+func convertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 	boolMatrix := make([][2]bool, configuration.NumFloors)
 	for floor := range boolMatrix {
 		for button := 0; button < 2; button++ {
@@ -136,8 +136,8 @@ func ConvertHallOrderStatestoBool(worldView WorldView) [][2]bool {
 	return boolMatrix
 }
 
-func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) assignerExecutable.HRAInput {
-	hallRequests := ConvertHallOrderStatestoBool(worldView)
+func hraInputFormatting(worldView WorldView, IDsAliveElevators []string) assignerExecutable.HRAInput {
+	hallRequests := convertHallOrderStatestoBool(worldView)
 	elevatorStates := make(map[string]assignerExecutable.HRAElevState)
 
 	for _, elevatorID := range IDsAliveElevators {
@@ -162,7 +162,7 @@ func HRAInputFormatting(worldView WorldView, IDsAliveElevators []string) assigne
 	}
 }
 
-func MergeCABandHRAOutput(OurHall [][2]bool, Ourcab []bool) singleElevator.Orders {
+func mergeCABandHRAOutput(OurHall [][2]bool, Ourcab []bool) singleElevator.Orders {
 	var OrderMatrix singleElevator.Orders
 	for floor, cabButton := range Ourcab {
 		if cabButton {
@@ -179,7 +179,7 @@ func MergeCABandHRAOutput(OurHall [][2]bool, Ourcab []bool) singleElevator.Order
 	return OrderMatrix
 }
 
-func GetCAB(localWorldView WorldView, ID string) []bool {
+func getCAB(localWorldView WorldView, ID string) []bool {
 	cabOrders := localWorldView.ElevatorStatusList[ID].Cab
 	Cab := make([]bool, len(cabOrders))
 	for i, order := range cabOrders {
@@ -188,7 +188,7 @@ func GetCAB(localWorldView WorldView, ID string) []bool {
 	return Cab
 }
 
-func SetLights(localWorldView WorldView) {
+func setLights(localWorldView WorldView) {
 	for floor := range localWorldView.HallOrderStatus {
 		for button := 0; button < 2; button++ {
 			order := localWorldView.HallOrderStatus[floor][button]
@@ -206,13 +206,13 @@ func SetLights(localWorldView WorldView) {
 	}
 }
 
-func AssignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
-	input := HRAInputFormatting(worldView, IDsAliveElevators)
+func assignOrder(worldView WorldView, IDsAliveElevators []string) map[string][][2]bool {
+	input := hraInputFormatting(worldView, IDsAliveElevators)
 	outputAssigner := assignerExecutable.Assigner(input)
 	return outputAssigner
 }
 
-func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
+func mergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDsAliveElevators []string) WorldView {
 	MergedWorldView := *localWorldView
 
 	//TOR -review det Nils har sendt
@@ -228,7 +228,7 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 		for button := range localWorldView.HallOrderStatus[floor] {
 			localOrder := &localWorldView.HallOrderStatus[floor][button]
 			receivedOrder := receivedWorldView.HallOrderStatus[floor][button]
-			HallOrderMerged := MergeOrders(localOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
+			HallOrderMerged := mergeOrders(localOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 			MergedWorldView.HallOrderStatus[floor][button] = HallOrderMerged
 		}
 	}
@@ -248,7 +248,7 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 					localCabOrder.AckList = make(map[string]bool)
 				}
 
-				CabOrderMerged := MergeOrders(localCabOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
+				CabOrderMerged := mergeOrders(localCabOrder, receivedOrder, localWorldView, receivedWorldView, IDsAliveElevators)
 				MergedWorldView.ElevatorStatusList[id].Cab[floor] = CabOrderMerged
 			}
 		}
@@ -256,7 +256,7 @@ func MergeWorldViews(localWorldView *WorldView, receivedWorldView WorldView, IDs
 	return MergedWorldView
 }
 
-func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
+func mergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration.OrderMsg, localWorldView *WorldView, updatedWorldView WorldView, IDsAliveElevators []string) configuration.OrderMsg {
 	updatedLocalOrder := *localOrder
 	if updatedLocalOrder.AckList == nil {
 		updatedLocalOrder.AckList = make(map[string]bool)
@@ -311,7 +311,7 @@ func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration
 		}
 		if allAcknowledged {
 			updatedLocalOrder.StateofOrder = configuration.Confirmed
-			ResetAckList(localWorldView)
+			resetAckList(localWorldView)
 		}
 	} else if updatedLocalOrder.StateofOrder == configuration.Completed { ////Handling of barrier condition from StateofOrder Completed to None
 		allAcknowledged := true
@@ -323,13 +323,13 @@ func MergeOrders(localOrder *configuration.OrderMsg, receivedOrder configuration
 		}
 		if allAcknowledged {
 			updatedLocalOrder.StateofOrder = configuration.None
-			ResetAckList(localWorldView)
+			resetAckList(localWorldView)
 		}
 	}
 	return updatedLocalOrder
 }
 
-func UpdateLastChanged(localWorldView WorldView, receivedWorldView WorldView, currentLastChanged map[string]time.Time) map[string]time.Time {
+func updateLastChanged(localWorldView WorldView, receivedWorldView WorldView, currentLastChanged map[string]time.Time) map[string]time.Time {
 	newLastChanged := make(map[string]time.Time)
 	for id, val := range currentLastChanged {
 		newLastChanged[id] = val

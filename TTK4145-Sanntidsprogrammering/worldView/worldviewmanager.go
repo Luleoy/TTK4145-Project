@@ -31,7 +31,7 @@ func WorldViewManager(
 	elevatorTimeoutTimer *time.Timer,
 ) {
 
-	initLocalWorldView := InitializeWorldView(elevatorID)
+	initLocalWorldView := initializeWorldView(elevatorID)
 	localWorldView := &initLocalWorldView
 
 	SendLocalWorldViewTimer := time.NewTimer(time.Duration(configuration.SendWVTimer))
@@ -50,7 +50,7 @@ func WorldViewManager(
 		case <-SendLocalWorldViewTimer.C: //Periodically broadcasts the elevators WorldView (every SendWVTimer) to synchronize elevator states across the network
 			localWorldView.ID = elevatorID
 			WorldViewTXChannel <- *localWorldView
-			SetLights(*localWorldView)
+			setLights(*localWorldView)
 			SendLocalWorldViewTimer.Reset(time.Duration(configuration.SendWVTimer))
 
 		case elevatorState := <-elevatorStateChannel: //Receives updated state (floor, direction, obstructed, behaviour) from SingleElevator and broadcasts this to synchronize across all elevators
@@ -58,28 +58,28 @@ func WorldViewManager(
 			elevStateMsg.Elev = elevatorState
 			localWorldView.ElevatorStatusList[elevatorID] = elevStateMsg
 			WorldViewTXChannel <- *localWorldView
-			SetLights(*localWorldView)
+			setLights(*localWorldView)
 
 		case buttonPressed := <-buttonPressedChannel:
-			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, buttonPressed, true)
-			if !ValidateWorldView(newLocalWorldView) {
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, buttonPressed, true)
+			if !validateWorldView(newLocalWorldView) {
 				continue
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
-			SetLights(*localWorldView)
+			setLights(*localWorldView)
 
 		case complete := <-completedOrderChannel: //Receives order completion events from SingleElevator and updates WorldView
-			newLocalWorldView := UpdateWorldViewWithButton(localWorldView, complete, false)
-			if !ValidateWorldView(newLocalWorldView) {
+			newLocalWorldView := updateWorldViewWithButton(localWorldView, complete, false)
+			if !validateWorldView(newLocalWorldView) {
 				continue
 			}
 			localWorldView = &newLocalWorldView
 			WorldViewTXChannel <- *localWorldView
-			SetLights(*localWorldView)
+			setLights(*localWorldView)
 
 		case receivedWorldView := <-WorldViewRXChannel:
-			lastChanged = UpdateLastChanged(*localWorldView, receivedWorldView, lastChanged)
+			lastChanged = updateLastChanged(*localWorldView, receivedWorldView, lastChanged)
 			IDsAvailableForAssignment := []string{elevatorID}
 			for _, id := range IDsAliveElevators {
 				if lastChange_i, ok := lastChanged[id]; ok && id != elevatorID {
@@ -88,19 +88,19 @@ func WorldViewManager(
 					}
 				}
 			}
-			newLocalWorldView := MergeWorldViews(localWorldView, receivedWorldView, IDsAvailableForAssignment)
-			if !ValidateWorldView(newLocalWorldView) {
+			newLocalWorldView := mergeWorldViews(localWorldView, receivedWorldView, IDsAvailableForAssignment)
+			if !validateWorldView(newLocalWorldView) {
 				continue
 			}
 			if !reflect.DeepEqual(newLocalWorldView, *localWorldView) {
 				WorldViewTXChannel <- newLocalWorldView
 				localWorldView = &newLocalWorldView
-				SetLights(*localWorldView)
+				setLights(*localWorldView)
 			}
-			AssignHallOrders := AssignOrder(*localWorldView, IDsAvailableForAssignment)
+			AssignHallOrders := assignOrder(*localWorldView, IDsAvailableForAssignment)
 			OurHall := AssignHallOrders[localWorldView.ID]
-			OurCab := GetCAB(*localWorldView, localWorldView.ID)
-			OrderMatrix := MergeCABandHRAOutput(OurHall, OurCab)
+			OurCab := getCAB(*localWorldView, localWorldView.ID)
+			OrderMatrix := mergeCABandHRAOutput(OurHall, OurCab)
 			if OrderMatrix != PreviousOrderMatrix {
 				newOrderChannel <- OrderMatrix
 				PreviousOrderMatrix = OrderMatrix
@@ -112,6 +112,6 @@ func WorldViewManager(
 				}
 			}
 		}
-		SetLights(*localWorldView)
+		setLights(*localWorldView)
 	}
 }

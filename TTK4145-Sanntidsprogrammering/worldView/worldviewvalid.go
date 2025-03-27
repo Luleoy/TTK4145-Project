@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func ValidateWorldView(wv WorldView) bool {
+func validateWorldView(wv WorldView) bool {
 	if wv.ID == "" {
 		fmt.Println("Validation failed: WorldView ID is empty")
 		return false
@@ -16,7 +16,7 @@ func ValidateWorldView(wv WorldView) bool {
 		return false
 	}
 	for id, elevStateMsg := range wv.ElevatorStatusList {
-		if !ValidateElevatorStateMsg(id, elevStateMsg) {
+		if !validateElevatorStateMsg(id, elevStateMsg) {
 			fmt.Printf("Validation failed: Invalid elevator state for %s\n", id)
 			return false
 		}
@@ -28,7 +28,7 @@ func ValidateWorldView(wv WorldView) bool {
 	for floor := range wv.HallOrderStatus {
 		for btn := range wv.HallOrderStatus[floor] {
 			order := wv.HallOrderStatus[floor][btn]
-			if !ValidateOrder(order) {
+			if !validateOrder(order) {
 				fmt.Printf("Validation failed: Invalid hall order at floor %d, button %d\n", floor, btn)
 				return false
 			}
@@ -37,25 +37,25 @@ func ValidateWorldView(wv WorldView) bool {
 	return true
 }
 
-func ValidateElevatorStateMsg(id string, elevStateMsg ElevStateMsg) bool {
+func validateElevatorStateMsg(id string, elevStateMsg ElevStateMsg) bool {
 	if elevStateMsg.Cab == nil || len(elevStateMsg.Cab) != configuration.NumFloors {
 		fmt.Printf("Validation failed: CabRequests not properly initialized for elevator %s\n", id)
 		return false
 	}
 	for floor, order := range elevStateMsg.Cab {
-		if !ValidateOrder(order) {
+		if !validateOrder(order) {
 			fmt.Printf("Validation failed: Invalid cab order at floor %d for elevator %s\n", floor, id)
 			return false
 		}
 	}
-	if !ValidateElevatorState(elevStateMsg.Elev) {
+	if !validateElevatorState(elevStateMsg.Elev) {
 		fmt.Printf("Validation failed: Invalid elevator core state for %s\n", id)
 		return false
 	}
 	return true
 }
 
-func ValidateOrder(order configuration.OrderMsg) bool {
+func validateOrder(order configuration.OrderMsg) bool {
 	if order.AckList == nil {
 		fmt.Println("Validation failed: Order AckList is nil")
 		return false
@@ -63,7 +63,7 @@ func ValidateOrder(order configuration.OrderMsg) bool {
 	return true
 }
 
-func ValidateElevatorState(state singleElevator.Elevator) bool {
+func validateElevatorState(state singleElevator.Elevator) bool {
 	if state.Floor < 0 || state.Floor >= configuration.NumFloors {
 		fmt.Printf("Validation failed: Invalid floor value %d\n", state.Floor)
 		return false

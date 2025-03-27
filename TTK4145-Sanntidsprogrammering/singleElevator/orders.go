@@ -8,6 +8,11 @@ import (
 
 type Orders [configuration.NumFloors][configuration.NumButtons]bool
 
+type directionBehaviourPair struct {
+	Direction elevio.MotorDirection
+	Behaviour Behaviour
+}
+
 func hasOrderAtFloor(orders Orders, floor int) bool {
 	for button := 0; button < configuration.NumButtons; button++ {
 		if orders[floor][button] {
@@ -70,7 +75,7 @@ func hasOrdersBelow(orders Orders, floor int) bool {
 	return false
 }
 
-func OrderCompletedatCurrentFloor(floor int, direction Direction, completedOrderChannel chan<- elevio.ButtonEvent, OrderMatrix Orders) {
+func orderCompletedatCurrentFloor(floor int, direction Direction, completedOrderChannel chan<- elevio.ButtonEvent, OrderMatrix Orders) {
 	if OrderMatrix[floor][2] {
 		completedOrderChannel <- elevio.ButtonEvent{Floor: floor, Button: elevio.BT_Cab}
 	}
@@ -126,45 +131,40 @@ func OrderManager(newOrderChannel chan<- Orders,
 	}
 }*/
 
-type DirectionBehaviourPair struct {
-	Direction elevio.MotorDirection
-	Behaviour Behaviour
-}
-
-func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) DirectionBehaviourPair {
+func ordersChooseDirection(floor int, direction Direction, OrderMatrix Orders) directionBehaviourPair {
 	switch direction {
 	case Up:
 		if hasOrdersAbove(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Up, Moving}
+			return directionBehaviourPair{elevio.MD_Up, Moving}
 		} else if hasOrderAtFloor(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Down, DoorOpen}
+			return directionBehaviourPair{elevio.MD_Down, DoorOpen}
 		} else if hasOrdersBelow(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Down, Moving}
+			return directionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
-			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
+			return directionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Down:
 		if hasOrdersBelow(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Down, Moving}
+			return directionBehaviourPair{elevio.MD_Down, Moving}
 		} else if hasOrderAtFloor(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Up, DoorOpen}
+			return directionBehaviourPair{elevio.MD_Up, DoorOpen}
 		} else if hasOrdersAbove(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Up, Moving}
+			return directionBehaviourPair{elevio.MD_Up, Moving}
 		} else {
-			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
+			return directionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	case Stop:
 		if hasOrderAtFloor(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Stop, DoorOpen}
+			return directionBehaviourPair{elevio.MD_Stop, DoorOpen}
 		} else if hasOrdersAbove(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Up, Moving}
+			return directionBehaviourPair{elevio.MD_Up, Moving}
 		} else if hasOrdersBelow(OrderMatrix, floor) {
-			return DirectionBehaviourPair{elevio.MD_Down, Moving}
+			return directionBehaviourPair{elevio.MD_Down, Moving}
 		} else {
-			return DirectionBehaviourPair{elevio.MD_Stop, Idle}
+			return directionBehaviourPair{elevio.MD_Stop, Idle}
 		}
 	default:
-		return DirectionBehaviourPair{elevio.MD_Stop, Idle}
+		return directionBehaviourPair{elevio.MD_Stop, Idle}
 	}
 }
 
