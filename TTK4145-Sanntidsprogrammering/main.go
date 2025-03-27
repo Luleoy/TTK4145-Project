@@ -7,7 +7,7 @@ import (
 	"TTK4145-Heislab/driver-go/elevio"
 	"TTK4145-Heislab/peerTracker"
 	"TTK4145-Heislab/singleElevator"
-	"TTK4145-Heislab/worldview"
+	"TTK4145-Heislab/worldView"
 	"flag"
 	"time"
 )
@@ -23,8 +23,8 @@ func main() {
 	newOrderChannel := make(chan singleElevator.Orders, configuration.Buffer)
 	completedOrderChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
 	buttonPressedChannel := make(chan elevio.ButtonEvent, configuration.Buffer)
-	WorldViewTXChannel := make(chan worldview.WorldView, configuration.Buffer)
-	WorldViewRXChannel := make(chan worldview.WorldView, configuration.Buffer)
+	WorldViewTXChannel := make(chan worldView.WorldView, configuration.Buffer)
+	WorldViewRXChannel := make(chan worldView.WorldView, configuration.Buffer)
 	IDPeersChannel := make(chan []string)
 	peerUpdateChannel := make(chan peers.PeerUpdate)
 	elevatorStateChannel := make(chan singleElevator.Elevator, configuration.Buffer)
@@ -40,7 +40,7 @@ func main() {
 	go elevio.PollButtons(buttonPressedChannel)
 	go singleElevator.SingleElevatorFsm(newOrderChannel, completedOrderChannel, elevatorStateChannel)
 	go peerTracker.TrackActivePeers(elevatorID, peerUpdateChannel, IDPeersChannel)
-	go worldview.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel, elevatorTimeoutTimer)
+	go worldView.WorldViewManager(elevatorID, WorldViewTXChannel, WorldViewRXChannel, buttonPressedChannel, newOrderChannel, completedOrderChannel, IDPeersChannel, elevatorStateChannel, elevatorTimeoutTimer)
 
 	select {}
 }

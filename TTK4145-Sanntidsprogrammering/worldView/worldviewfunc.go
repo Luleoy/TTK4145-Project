@@ -1,4 +1,4 @@
-package worldview
+package worldView
 
 import (
 	"TTK4145-Heislab/assignerExecutable"
